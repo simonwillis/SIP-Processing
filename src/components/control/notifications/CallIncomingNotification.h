@@ -20,13 +20,9 @@ private:
     Json::Value parseViaHeader(std::string viaHeader) {
         Json::Value result;
         mapped_buffer source = mapped_buffer(viaHeader);
-        //fprintf(stderr, "parseViaHeader [input=%s]\n", viaHeader.c_str());
         std::vector<mapped_buffer> parts = buffer_split(source, ';');
-        //fprintf(stderr, "Via Header has %d parts\n", parts.size());
 
         for (size_t i = 0; i < parts.size(); ++i) {
-            //buffer_trim(parts[i]);
-            //fprintf(stderr, "  Checking '%s'\n", parts[i].bufferToString().c_str());
             if (i == 0) {
                 auto subParts = buffer_split_on_first(parts[i], ' ');
                 if (subParts.size() > 1) {

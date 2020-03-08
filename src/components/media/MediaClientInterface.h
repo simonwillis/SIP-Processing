@@ -7,6 +7,9 @@
 
 
 #include <string>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
+
 #include "messages/MediaResponse.h"
 #include "messages/MediaRequest.h"
 
@@ -24,6 +27,7 @@ public:
     void PostRequest(MediaRequest & request);
 
 private:
+
     uv_tcp_t client;
 
     struct sockaddr_in socket_address;
@@ -51,6 +55,8 @@ private:
     static void on_read_close(uv_handle_t * handle);
     static void on_write(uv_write_t * req, int status);
     static void try_connect(uv_timer_t * timer);
+
+    std::shared_ptr<spdlog::logger> logger;
 
 };
 

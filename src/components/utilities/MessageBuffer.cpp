@@ -43,8 +43,6 @@ size_t MessageBuffer::push(const char * buf, size_t len) {
         dataEndPos = len - count;
     }
 
-    //fprintf(stderr, "On completion of push [startPos=%zu] [endPos=%zu]\n", dataStartPos, dataEndPos);
-
     return len;
 }
 
@@ -59,7 +57,6 @@ char MessageBuffer::getchar() {
 
 bool MessageBuffer::putchar(char c) {
     bool space = getSpaceAvailableByteCount();
-    //fprintf(stderr, "size=%ld, start=%ld end=%ld available=%ld\n", size, dataStartPos, dataEndPos, getSpaceAvailableByteCount());
     if (space) {
         --dataStartPos;
         if (dataStartPos >= size) dataStartPos = size;
@@ -69,8 +66,6 @@ bool MessageBuffer::putchar(char c) {
 }
 
 size_t MessageBuffer::pull(char * buf, size_t bufSize, size_t bytes) {
-
-    //fprintf(stderr, "MessageBuffer::pull (count=%zu)\n", bytes);
 
     size_t storedByteCount = getStoredByteCount();
     size_t count;
@@ -82,7 +77,6 @@ size_t MessageBuffer::pull(char * buf, size_t bufSize, size_t bytes) {
 
     // Now copy the data into the buffer
     if (count > (size - dataStartPos)) {
-        //fprintf(stderr, "MessageBuffer: Overlapped read\n");
         // we overlap the end and need to get some from the end and the rest from the start
         size_t endCount = size - dataStartPos;
         size_t startCount = count - endCount;
@@ -90,20 +84,15 @@ size_t MessageBuffer::pull(char * buf, size_t bufSize, size_t bytes) {
         memcpy((void *)(buf + endCount), (void *)data, startCount);
         dataStartPos = startCount;
     } else if (count) {
-        //fprintf(stderr, "MessageBuffer: Direct read\n");
         // this is a straight collect and update
         memcpy((void *)buf, (void *)(data + dataStartPos), count);
         dataStartPos += count;
     }
 
-    //fprintf(stderr, "MessageBuffer::pull (count=%zu) pulled %zu bytes\n", bytes, count);
-
     return count;
 }
 
 size_t MessageBuffer::pull(char * buf, size_t bufSize, const std::vector<char> delimiter) {
-
-    //fprintf(stderr, "MessageBuffer::pull (delimited)\n");
 
     size_t delimiterLength = delimiter.size();
     size_t storedByteCount = getStoredByteCount();
@@ -151,8 +140,6 @@ size_t MessageBuffer::pull(char * buf, size_t bufSize, const std::vector<char> d
             }
         } while (true);
 
-        //fprintf(stderr, "MessageBuffer::pull [located=%s] [start=%zu] [end=%lu] [count=%lu]\n", haveMatch ? "yes":"no", dataStartPos, pSource - data, count);
-
         if (!haveMatch) {
             count = 0;
         }
@@ -163,8 +150,6 @@ size_t MessageBuffer::pull(char * buf, size_t bufSize, const std::vector<char> d
     }
 
     count = pull(buf, bufSize, count);
-
-    //fprintf(stderr, "MessageBuffer::pull On completion of pull [startPos=%zu] [endPos=%zu] [count=%zu]\n", dataStartPos, dataEndPos, count);
 
     return count;
 }

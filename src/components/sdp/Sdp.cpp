@@ -3,7 +3,6 @@
 //
 
 #include "Sdp.h"
-#include "../../../tools/RaiiLog.h"
 
 using namespace std;
 
@@ -16,8 +15,7 @@ std::ostream& operator<< (std::ostream& os, Sdp& sdp) {
 }
 
 Sdp::Sdp() {
-    RaiiLog("Sdp() CTOR");
-    //origin = SdpOriginLine();
+    logger = spdlog::get("stdlogger");
 
     attributes.reserve(32);
     media.reserve(8);
@@ -25,9 +23,8 @@ Sdp::Sdp() {
 
 
 Sdp::Sdp(const char * rawSdpBodyData, size_t size) {
-    RaiiLog("Sdp(rawSdp) CTOR");
 
-    fprintf(stderr, "Sdp::CTOR with raw bodydata, size=%zu content=%s\n", size, std::string(rawSdpBodyData, size).c_str());
+    logger->debug("New DSP item raw bodydata, size={} content={}", size, std::string(rawSdpBodyData, size));
 
     size_t dataSize = (size < MaxSdpBodyLength) ? size : MaxSdpBodyLength;
     memcmp(rawSdpBodyData, data, dataSize);
@@ -40,8 +37,6 @@ Sdp::Sdp(const char * rawSdpBodyData, size_t size) {
 
         if (keyValuePair.size() == 2) {
             char c = tolower(keyValuePair[0].buf[0]);
-            fprintf(stderr, "SDP Item %c\n", c);
-            fprintf(stderr, "   keyValuePair itemcount=%lu\n", keyValuePair.size());
 
             switch(c) {
                 case 'o': {
@@ -74,12 +69,12 @@ Sdp::Sdp(const char * rawSdpBodyData, size_t size) {
                     }
                     break;
                 default:
-                    fprintf(stderr, "SDP: Don't understand entry '%s' starting with '%c'\n", lines[lineIndex].toString().c_str(), c);
+                    logger->warn("SDP: Don't understand entry '{}' starting with '{}'", lines[lineIndex].toString(), c);
                     break;
             }
 
         } else {
-            fprintf(stderr, "Invalid SDP line, not split by '=' [value=%s]\n", lines[lineIndex].toString().c_str());
+            logger->debug("Invalid SDP line, not split by '=', value is '{}'", lines[lineIndex].toString());
         }
     }
 
@@ -106,7 +101,7 @@ uint16_t Sdp::addMediaStream(SdpMedia &mediaItem) {
 uint16_t Sdp::addMediaStream(SdpMediaLine &line) {
     ++streamCount;
 
-    fprintf(stderr, "Sdp::addMediaStream %d %s\n", streamCount, line.toString().c_str());
+    logger->debug("Sdp::addMediaStream {}, {}", streamCount, line.toString().c_str());
 
     SdpMedia m(line);
     this->media.push_back(m);
@@ -125,7 +120,7 @@ void Sdp::addAttribute(uint16_t streamId, SdpAttributeLine &attributeLine) {
     }
     uint16_t mediaIndex = streamId - 1;
     if (mediaIndex >= streamCount) {
-        fprintf(stderr, "Invalid media stream id %u referenced when adding an attribute\n", streamId);
+        logger->warn("Invalid media stream id {} referenced when adding an attribute", streamId);
         return;
     }
     media[mediaIndex].addAttribute(attributeLine);
@@ -136,7 +131,7 @@ void Sdp::addFormat(uint16_t streamId, SdpFormat format) {
     uint16_t mediaIndex = streamId - 1;
 
     if (mediaIndex >= streamCount) {
-        fprintf(stderr, "Invalid media stream id %u referenced when adding a format\n", streamId);
+        logger->warn("Invalid media stream id {} referenced when adding a format", streamId);
         return;
     }
     media[mediaIndex].addFormat(format);
@@ -160,7 +155,7 @@ void Sdp::addAttribute(uint16_t streamId, std::string &name, std::string &value,
     uint16_t mediaIndex = streamId - 1;
 
     if (mediaIndex >= streamCount) {
-        fprintf(stderr, "Invalid media stream id %u referenced when adding an attribute\n", streamId);
+        logger->debug("Invalid media stream id {} referenced when adding an attribute", streamId);
         return;
     }
 
@@ -172,7 +167,7 @@ void Sdp::addAttribute(uint16_t streamId, std::string &name) {
     uint16_t mediaIndex = streamId - 1;
 
     if (mediaIndex >= streamCount) {
-        fprintf(stderr, "Invalid media stream id %u referenced when adding an attribute\n", streamId);
+        logger->debug("Invalid media stream id {} referenced when adding an attribute, name={}", streamId, name);
         return;
     }
 
@@ -194,7 +189,6 @@ void Sdp::addAttribute(uint16_t streamId, std::string &name) {
  *   }
  */
 std::string Sdp::toJson() {
-    fprintf(stderr, "Sdp::toJson TBC\n");
 
     size_t attributeCount = attributes.size();
     size_t attributeIndex;
@@ -207,7 +201,6 @@ std::string Sdp::toJson() {
     ss << "\"session\":" << session.toJson() << ',';
     ss << "\"connection\":" << connection.toJson() << ',';
     ss << "\"time\":" << timing.toJson() << ',';
-
 
     for (attributeIndex = 0; attributeIndex < attributeCount; ++attributeIndex) {
         ss << attributes[attributeIndex].toJson() << ',';
@@ -224,8 +217,6 @@ std::string Sdp::toJson() {
 
     ss << "}";
 
-    fprintf(stderr, "SDP::toJson() returning %s", ss.str().c_str());
-
     return ss.str();
 }
 
@@ -241,11 +232,9 @@ std::string Sdp::toString() {
     for (attributeIndex = 0; attributeIndex < attributeCount; ++attributeIndex) {
         ss << attributes[attributeIndex].toString() << "\r\n";
     }
-    fprintf(stderr, "Sdp::toString streamCount=%hhu\n", streamCount);
     for (uint8_t mediaIndex = 0; mediaIndex < streamCount; ++mediaIndex) {
         ss << media[mediaIndex].toString() << "\r\n";
     }
-    fprintf(stderr, "Sdp::toString() returning\n%s\n", ss.str().c_str());
     return ss.str();
 }
 

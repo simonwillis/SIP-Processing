@@ -8,6 +8,8 @@
 
 #include <string>
 #include <list>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 #include "../../utilities/buffers.h"
 
 //TODO Rationalise SipHeader classes and the name value collection typdefs

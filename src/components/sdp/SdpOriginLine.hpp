@@ -7,6 +7,9 @@
 
 
 #include <sstream>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
+
 #include "../utilities/buffers.h"
 #include "SdpAddrType.hpp"
 #include "../media/definitions.h"
@@ -30,7 +33,7 @@ public:
             addrType = buffer_equals(content[OriginIndexAddressType], "IP6") ? SdpAddrType(SdpAddrType::Type::IPV6) : SdpAddrType(SdpAddrType::Type::IPV4);
             address = bufferToString(content[OriginIndexAddress]);
         } else {
-            fprintf(stderr, "Failed to load SDP Origin data content has %lu entries not 6", content.size());
+            spdlog::get("stdlogger")->warn("Failed to load SDP Origin data content has {} entries not 6", content.size());
         }
     }
 

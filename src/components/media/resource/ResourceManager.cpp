@@ -8,7 +8,9 @@
 ResourceManager::ResourceManager(uint16_t deviceCount, uint16_t basePort)
         : deviceCount(deviceCount), basePort(basePort) {
 
-    fprintf(stderr, "ResourceManager::CTOR [deviceCount=%u] [basePort=%u]\n", deviceCount, basePort);
+    logger = spdlog::get("stdlogger");
+
+    logger->info("ResourceManager created deviceCount={}, basePort={}", deviceCount, basePort);
 
     for (uint16_t i = 0; i < deviceCount; ++i) {
 
@@ -21,25 +23,22 @@ AllocatedResource *  ResourceManager::AllocateResource(media_offer_properties_t 
 
     AllocatedResource * allocatedResource = nullptr;
 
-    fprintf(stderr, "ResourceManager::AllocateResource received offer properties\n");
+    logger->debug("ResourceManager::AllocateResource received offer properties\n");
 
     uint32_t resourceId = getNewResourceId();
 
-    fprintf(stderr, "ResourceManager::AllocateResource given id [resourceId=%u]\n", resourceId);
-
-
+    logger->debug("ResourceManager::AllocateResource given id [resourceId=%u]\n", resourceId);
 
     return allocatedResource;
-
 }
 
 
 void ResourceManager::ReleaseResource(uint32_t resourceId) {
-
+    //TODO Implement ResourceManager::ReleaseResource
 }
 
 
 AllocatedResource * ResourceManager::getAllocatedResource(uint32_t resourceId) {
-
+    //TODO Implement ResourceManager::getAllocatedResource
     return NULL;
 }

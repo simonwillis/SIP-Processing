@@ -2,8 +2,8 @@
 // Created by Simon Willis on 31/05/2016.
 //
 
-#ifndef TESTMAPPEDBUFFERS_SIPOKRESPONSE_H
-#define TESTMAPPEDBUFFERS_SIPOKRESPONSE_H
+#ifndef SIPOKRESPONSE_H
+#define SIPOKRESPONSE_H
 
 
 #include "SipResponse.h"
@@ -33,4 +33,4 @@ public:
 };
 
 
-#endif //TESTMAPPEDBUFFERS_SIPOKRESPONSE_H
+#endif //SIPOKRESPONSE_H

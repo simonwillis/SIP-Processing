@@ -5,11 +5,14 @@
 #ifndef _SESSIONMANAGER_H
 #define _SESSIONMANAGER_H
 
-
 #include <map>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
+
 #include "SipDialogue.h"
 #include "SipParser.h"
 #include "messages/SipRequest.h"
+
 
 class SipDialogueManager {
 
@@ -37,6 +40,7 @@ private:
 
 private:
     uint32_t lastChannelId = 0;
+    std::shared_ptr<spdlog::logger> logger;
 
 };
 

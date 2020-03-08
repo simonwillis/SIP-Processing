@@ -20,7 +20,7 @@ public:
 
         std::vector<mapped_buffer_t> sections = buffer_split(this->headerValue, ' ');
         if (sections.size() != 2) {
-            fprintf(stderr, "SipViaHeader Cannot use content [%s], expected two sections separated by space, found %ld\n", this->headerValue.toString().c_str(), sections.size());
+            spdlog::get("stdlogger")->warn("SipViaHeader Cannot use content {}, expected two sections separated by space, found {}", this->headerValue.toString(), sections.size());
             //TODO handle failure to read data in header instantiation
             return;
         }
@@ -31,7 +31,7 @@ public:
         } else if (buffer_ends_with(sections[0], "TCP")) {
             transportType = SipMessage::SipMessageTransportType::TCP;
         } else {
-            fprintf(stderr, "SipViaHeader Unknown connection type in VIA [%s]\n", sections[0].toString().c_str());
+            spdlog::get("stdlogger")->warn("SipViaHeader Unknown connection type in VIA {}\n", sections[0].toString());
             transportType = SipMessage::DefaultTransportType;
         }
 

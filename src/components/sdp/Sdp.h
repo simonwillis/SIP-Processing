@@ -7,6 +7,9 @@
 
 #include <iostream>
 #include <string>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
+
 #include "../utilities/buffers.h"
 #include "../../../lib/json/json.h"
 #include "../media/definitions.h"
@@ -39,6 +42,7 @@ public:
     Sdp(Sdp &other)
         : streamCount(other.streamCount), session(other.session), origin(other.origin),connection(other.connection), timing(other.timing) {
 
+        this->logger = spdlog::get("stdlogger");
         attributes.reserve(other.attributes.size());
         for (std::vector<SdpAttribute>::iterator i = other.attributes.begin(); i != other.attributes.end(); ++i) {
             this->attributes.push_back(*i);
@@ -90,6 +94,8 @@ private:
 
     // holds the raw SDP against which the SDP values are mapped
     char data[MaxSdpBodyLength];
+
+    std::shared_ptr<spdlog::logger> logger;
 
 
 };

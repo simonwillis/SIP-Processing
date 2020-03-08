@@ -11,6 +11,8 @@
 #include <string>
 #include <list>
 #include <vector>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 #include "messages/SipMessage.h"
 #include "messages/SipRequest.h"
 #include "SipTransaction.h"
@@ -65,6 +67,8 @@ private:
     DialogueState dialogueState = DialogueState::NONE;
     bool recordingState = false;
     SipMessage::SipMessageTransportType transportType = SipMessage::SipMessageTransportType::UDP;
+
+    std::shared_ptr<spdlog::logger> logger;
 
     //TODO Handle specific dialogue Ids for controller requests and notifications, i.e. recording start AND stop need the requests original ID
 };

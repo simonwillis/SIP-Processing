@@ -6,7 +6,6 @@
 #include <vector>
 #include "SipParser.h"
 #include "../utilities/util.hpp"
-#include "../../../tools/RaiiLog.h"
 
 using namespace std;
 
@@ -17,61 +16,55 @@ const std::vector<char> SipParser::messageDelimiter = std::vector<char>{'\r', '\
 
 SipParser::SipParser(SipMessageEventHandler eventHandler, void * callbackData)
         : eventHandler(eventHandler), callbackData(callbackData) {
-    //fprintf(stderr, "SipParser::CTOR\n");
+    logger = spdlog::get("stdlogger");
 }
 
 size_t SipParser::loadMessageData(const char * buf, size_t len) {
-    RaiiLog raiiLog = RaiiLog("SipParser::loadMessageData");
 
-    if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::loadMessageData\n");
     for (size_t i = 0; i < len; ++i) {
         printChar(buf[i]);
     }
 
-    if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::loadMessageData passed %zu bytes, %s sipMessage\n", len, (sipMessage ? "already have a": "no existing"));
+    logger->debug("SipParser::loadMessageData passed {} bytes, {} sipMessage", len, (sipMessage ? "already have a": "no existing"));
 
     if (!processingMessage) {
-        if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::loadMessageData Waiting for message, received %ld bytes\n", len);
+        logger->debug("SipParser::loadMessageData Waiting for message, received {} bytes", len);
         this->sipMessage = parseHeaderData(buf, len);
         if (sipMessage) {
             if (sipMessage->getContentLength() == 0) {
-                if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::loadMessageData calling event handler with completed SipMessage, content length is zero\n");
+                logger->debug("SipParser::loadMessageData calling event handler with completed SipMessage, content length is zero");
                 this->eventHandler(sipMessage, this->callbackData);
-                //fprintf(stderr, "SipParser::loadMessageData purging local copy of SipMessage\n");
                 receivedContentLength = 0;
                 processingMessage = false;
             } else {
-                if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::loadMessageData (%s %s) content length = %d\n", sipMessage->getSubTypeDescriptionString(), sipMessage->getTypeDescriptionString(), sipMessage->getContentLength());
+                logger->debug("SipParser::loadMessageData {} {} content length = {}", sipMessage->getSubTypeDescriptionString(), sipMessage->getTypeDescriptionString(), sipMessage->getContentLength());
                 bodyType = sipMessage->getContentType();
 
-                if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::loadMessageData body type = %s [expecting=%s]\n", SipMessageBody::toString(sipMessage->getContentType()), SipMessageBody::toString(this->expectingBodyContentType));
+                logger->debug("SipParser::loadMessageData body type = {} [expecting={}]", SipMessageBody::toString(sipMessage->getContentType()), SipMessageBody::toString(this->expectingBodyContentType));
                 expectingBodyContentType = (bodyType == SipMessageBody::BodyType::MULTIPLE) ? SipMessageBody::BodyType::BOUNDARY : bodyType;
-                if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::loadMessageData now expecting body type = %s [expecting=%s]\n", SipMessageBody::toString(sipMessage->getContentType()), SipMessageBody::toString(this->expectingBodyContentType));
+                logger->debug("SipParser::loadMessageData now expecting body type = {} [expecting={}]\n", SipMessageBody::toString(sipMessage->getContentType()), SipMessageBody::toString(this->expectingBodyContentType));
                 processingMessage = true;
             }
             return sipMessage->getContentLength();
         } else {
             return 0;
         }
-
     }
 
-    //fprintf(stderr, "SipParser::loadMessageData Have a sipMessage at address %p\n", sipMessage);
-    if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::loadMessageData body type = %s [expecting=%s]\n", SipMessageBody::toString(sipMessage->getContentType()), SipMessageBody::toString(this->expectingBodyContentType));
+    logger->warn("SipParser::loadMessageData body type = {} [expecting={}]", SipMessageBody::toString(sipMessage->getContentType()), SipMessageBody::toString(this->expectingBodyContentType));
 
     receivedContentLength += len;
-    //fprintf(stderr, "SipParser::loadMessageData Waiting for %ld bytes of body data, received %ld, total %d\n", sipMessage->getContentLength(), len, receivedContentLength);
 
     parseBodyData(buf, len);
 
     if (receivedContentLength >= sipMessage->getContentLength()) {
-        if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::loadMessageData: Received content length = %d, Content-Length = %d - calling eventHandler\n", receivedContentLength, sipMessage->getContentLength());
+        logger->debug("SipParser::loadMessageData: Received content length = {}, Content-Length = {} - calling eventHandler", receivedContentLength, sipMessage->getContentLength());
         this->eventHandler(sipMessage, this->callbackData);
         receivedContentLength = 0;
         processingMessage = false;
         return 0;
     } else {
-        fprintf(stderr, "SipParser::loadMessageData: Received content length = %d, Content-Length = %d - waiting for more data\n", receivedContentLength, sipMessage->getContentLength());
+        logger->debug("SipParser::loadMessageData: Received content length = {}, Content-Length = {} - waiting for more data", receivedContentLength, sipMessage->getContentLength());
         processingMessage = true;
         return sipMessage->getContentLength() - receivedContentLength;
     }
@@ -80,36 +73,32 @@ size_t SipParser::loadMessageData(const char * buf, size_t len) {
 
 
 SipMessage * SipParser::parseHeaderData(const char * message, const size_t messageSize) {
-    RaiiLog raiiLog = RaiiLog("SipParser::parseHeaderData");
+
     SipMessage * msg;
     normaliseHeaderData(message, messageSize);
     msg = SipMessage::builder(data);
 
     if (msg) {
-
-        if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseHeaderData call to builder returned sipMessage at %p\n", msg);
-
         requiredContentLength = msg->getContentLength();
         if (requiredContentLength) {
             expectingBodyContentType = (msg->getContentType() == SipMessageBody::BodyType::MULTIPLE)
                                        ? SipMessageBody::BodyType::BOUNDARY
                                        : msg->getContentType();
         } else {
-            if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseHeaderData content length is zero so setting expected body type to NONE\n");
+            logger->debug("SipParser::parseHeaderData content length is zero so setting expected body type to NONE");
             expectingBodyContentType = SipMessageBody::BodyType::NONE;
         }
 
-        if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseHeaderData Picked up new SIP Message. Required Content Length = %d, expecting body type %s\n", requiredContentLength, SipMessageBody::toString(expectingBodyContentType));
+        logger->debug("SipParser::parseHeaderData Picked up new SIP Message. Required Content Length = {}, expecting body type {}", requiredContentLength, SipMessageBody::toString(expectingBodyContentType));
     } else {
-        fprintf(stderr, "SipParser::parseHeaderData call to builder returned a NULL sipMessage\n");
+        logger->warn("SipParser::parseHeaderData call to builder returned a NULL sipMessage");
     }
     return msg;
 }
 
 void SipParser::parseBodyData(const char *message, const size_t messageSize) {
-    RaiiLog raiiLog = RaiiLog("SipParser::parseBodyData\n");
 
-    if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData [contentType=%s] [expectingBodyContentType=%s]\n", SipMessageBody::toString(bodyType), SipMessageBody::toString(expectingBodyContentType));
+    logger->debug("SipParser::parseBodyData [contentType={}] [expectingBodyContentType={}]", SipMessageBody::toString(bodyType), SipMessageBody::toString(expectingBodyContentType));
 
     mapped_buffer_t msgBuffer = mapped_buffer(message, messageSize);
 
@@ -117,18 +106,18 @@ void SipParser::parseBodyData(const char *message, const size_t messageSize) {
 
     switch (expectingBodyContentType) {
         case SipMessageBody::BodyType::BOUNDARY: {
-            if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData Processing body data type as BOUNDARY\n");
+            logger->debug("SipParser::parseBodyData Processing body data type as BOUNDARY");
 
             vector<mapped_buffer_t> lines = buffer_split_lines(msgBuffer);
 
-            if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData Body has %zu lines\n", lines.size());
+            logger->debug("SipParser::parseBodyData Body has {} lines", lines.size());
 
             if (buffer_contains(lines[0], bodyBoundaryKey.c_str())) {
 
                 if (buffer_ends_with(lines[0], "--")) {
                     // the is the close off of the data set we should not expect any further data
 
-                    if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData Located boundary entry for end of multipart data\n");
+                    logger->debug("SipParser::parseBodyData Located boundary entry for end of multipart data");
 
                     nextBodyType = SipMessageBody::BodyType::NONE;
 
@@ -142,7 +131,7 @@ void SipParser::parseBodyData(const char *message, const size_t messageSize) {
                             } else if (buffer_contains(lines[lineIndex], "xml")) {
                                 nextBodyType = SipMessageBody::BodyType::XML;
                             } else {
-                                fprintf(stderr, "SipParser::parseBodyData Don't know how to handle content type '%s' storing as OTHER\n", string(lines[lineIndex].buf, lines[lineIndex].len).c_str());
+                                logger->warn("SipParser::parseBodyData Don't know how to handle content type {} storing as OTHER", string(lines[lineIndex].buf, lines[lineIndex].len));
                                 nextBodyType = SipMessageBody::BodyType::OTHER;
                             }
                         }
@@ -153,35 +142,35 @@ void SipParser::parseBodyData(const char *message, const size_t messageSize) {
         break;
 
         case SipMessageBody::BodyType::SDP:
-            if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData Processing body data type as SDP\n");
+            logger->debug("SipParser::parseBodyData Processing body data type as SDP");
 
             data.bodies.insert(std::make_pair(SipMessageBody::BodyType::SDP, string(message, messageSize)));
             sipMessage->addBody(SipMessageBody::BodyType::SDP, bufferToString(message));
-            //fprintf(stderr, "SipParser::parseBodyData [SDP=%s]\n", data.sdp.c_str());
+
             nextBodyType = (bodyType == SipMessageBody::BodyType::MULTIPLE) ? SipMessageBody::BodyType::BOUNDARY : SipMessageBody::BodyType::NONE;
             break;
         case SipMessageBody::BodyType::XML:
-            if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData Processing body data type as XML\n");
+            logger->debug("SipParser::parseBodyData Processing body data type as XML");
 
             data.bodies.insert(std::make_pair(SipMessageBody::BodyType::XML, string(message, messageSize)));
             sipMessage->addBody(SipMessageBody::BodyType::XML, bufferToString(message));
             nextBodyType = (bodyType == SipMessageBody::BodyType::MULTIPLE) ? SipMessageBody::BodyType::BOUNDARY : SipMessageBody::BodyType::NONE;
             break;
         case SipMessageBody::BodyType::OTHER:
-            if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData Processing body data type as OTHER [%s]\n", string(message, messageSize).c_str());
+            logger->debug("SipParser::parseBodyData Processing body data type as OTHER []", string(message, messageSize));
 
             data.bodies.insert(std::make_pair(SipMessageBody::BodyType::OTHER, string(message, messageSize)));
             nextBodyType = (bodyType == SipMessageBody::BodyType::MULTIPLE) ? SipMessageBody::BodyType::BOUNDARY : SipMessageBody::BodyType::NONE;
             break;
         case SipMessageBody::BodyType::NONE:
-            if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData Attempting to parse body data but the expected datatype is NONE\n");
+            logger->debug("SipParser::parseBodyData Attempting to parse body data but the expected datatype is NONE");
             break;
         case SipMessageBody::BodyType::MULTIPLE:
-            if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData Unexxpectedly waiting for MULTIPLE body type when this case should have already been processed\n");
+            logger->debug("SipParser::parseBodyData Unexxpectedly waiting for MULTIPLE body type when this case should have already been processed");
             nextBodyType = SipMessageBody::BodyType::NONE;
             break;
         case SipMessageBody::BodyType::UNKNOWN:
-            if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData Unexxpectedly waiting for UNKNOWN body type\n");
+            logger->warn("SipParser::parseBodyData Unexxpectedly waiting for UNKNOWN body type");
             nextBodyType = SipMessageBody::BodyType::NONE;
             break;
     }
@@ -189,13 +178,12 @@ void SipParser::parseBodyData(const char *message, const size_t messageSize) {
     // Reset the body Type so that the routine knows to parse the next incoming descriptor block
     expectingBodyContentType = nextBodyType;
 
-    if (DEBUG_SIPPARSER) fprintf(stderr, "SipParser::parseBodyData set [expectingBodyContentType=%s]\n", SipMessageBody::toString(expectingBodyContentType));
+    logger->debug("SipParser::parseBodyData set [expectingBodyContentType={}]", SipMessageBody::toString(expectingBodyContentType));
 
 }
 
 
 void SipParser::normaliseHeaderData(const char * message, const size_t messageSize) {
-    RaiiLog raiiLog = RaiiLog("SipParser::normaliseHeaderData");
 
     size_t pos = 0;
     char line[SipMessage::MaxHeaderLineLength];
@@ -229,7 +217,6 @@ void SipParser::normaliseHeaderData(const char * message, const size_t messageSi
                             if ((subparts.size() > 1) && (buffer_equals(subparts[0], "boundary"))) {
                                 //overrides the standard pre-set boundary key value
                                 bodyBoundaryKey = string(subparts[1].buf, subparts[1].len);
-                                //fprintf(stderr, "Setting Body Boundary Key to %s\n", bodyBoundaryKey.c_str());
                             }
                         }
                     } else if (buffer_contains(line, "XML")) {
@@ -280,8 +267,6 @@ size_t SipParser::readHeaderLine(size_t &pos, const char * message, const size_t
     memset(line, 0, sizeOfLine);
     memset(method, 0, sizeOfMethod);
 
-    //fprintf(stderr, "SipMessage::readHeaderLine: passed pos %ld\n", pos);
-
     // Cover off the case that we have got to the end of the message
     if (pos >= messageSize) {
         endOfMessage = true;
@@ -290,10 +275,8 @@ size_t SipParser::readHeaderLine(size_t &pos, const char * message, const size_t
 
     for (messageIndex = pos; (pMessage < (message + messageSize) && (pLine < (line + sizeOfLine - 1)));
             ++messageIndex, ++pMessage, ++pos) {
-        //printChar(*pMessage);
         if (! haveName) {
             if ((methodLength >= sizeOfMethod - 1)|| (! isValidHeaderFieldNameChar(*pMessage))) {
-                //*pMethod = '\0';
                 haveName = true;
             } else {
                 // we want to ignore any line starting with '-'
@@ -341,6 +324,5 @@ size_t SipParser::readHeaderLine(size_t &pos, const char * message, const size_t
     endOfHeaders = (lineLength == 0);
     endOfMessage = (pos >= messageSize);
 
-    //fprintf(stderr, "\nSipMessage::readHeaderLine:  completed [pos=%ld]\n", pos);
     return lineLength;
 }

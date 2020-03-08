@@ -1,11 +1,10 @@
 #include <iostream>
 
 #include <uv.h>
-
 #include <spdlog/spdlog.h>
-#include <json/json.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
-#include "../../tools/RaiiLog.h"
+#include <json/json.h>
 
 #include "../components/control/requests/Request.h"
 #include "../components/control/ControlInterface.h"
@@ -34,14 +33,9 @@
 #include "../components/media/messages/MediaRecordStartRequest.h"
 #include "../components/media/messages/MediaRecordStartResponse.h"
 #include "../components/media/messages/MediaRecordStopRequest.h"
-#include "../components/media/definitions.h"
 #include "../components/control/notifications/CallStatisticsNotification.h"
 
 using namespace std;
-
-/*
- * For information on using spdlog see https://github.com/gabime/spdlog/wiki/1.-QuickStart
- */
 
 ControlInterface * controlInterface;
 SipInterface * sipInterface;
@@ -53,15 +47,15 @@ uint32_t theresourceId = 0;
 uv_stream_t * controlStream = NULL;
 
 void mediaResponseHandler(MediaResponse * mediaResponse) {
-     RaiiLog raiiLogr = RaiiLog("Core::mediaResponseHandler");
-    //fprintf(stderr, "Core::mediaResponseHandler triggered\n");
+    auto logger = spdlog::get("stdlogger");
+    logger->debug("Core::mediaResponseHandler triggered");
 
     if (! mediaResponse) {
-        fprintf(stderr, "Core::mediaResponseHandler received invalid NULL response. Ignoring\n");
+        logger->error("Core::mediaResponseHandler received invalid NULL response. Ignoring");
         return;
     }
 
-    //fprintf(stderr, "Core::mediaResponseHandler received  %s %s %s\n", mediaResponse->getDomainStr(), mediaResponse->getMethodStr(), mediaResponse->getTypeStr());
+    logger->debug("Core::mediaResponseHandler received  {} {} {}", mediaResponse->getDomainStr(), mediaResponse->getMethodStr(), mediaResponse->getTypeStr());
 
     switch (mediaResponse->getMethod()) {
         case MediaMessage::Method::UNKNOWN:
@@ -69,7 +63,7 @@ void mediaResponseHandler(MediaResponse * mediaResponse) {
 
         case MediaMessage::Method::ALLOCATE: {
 
-            fprintf(stderr, "Core::mediaResponseHandler ALLOCATE Response\n");
+            logger->debug("Core::mediaResponseHandler ALLOCATE Response");
 
             MediaAllocateResponse * r = (MediaAllocateResponse *) mediaResponse;
             uint32_t channelId = r->getCallbackId();
@@ -79,7 +73,7 @@ void mediaResponseHandler(MediaResponse * mediaResponse) {
             //TODO Update resource repo
             theresourceId = resourceId;
 
-            fprintf(stderr, "Media resource allocated channelId=%zu, resourceId=%zu\n", channelId, resourceId);
+            logger->debug("Media resource allocated channelId={}, resourceId={}", channelId, resourceId);
 
             sipInterface->answerCall(channelId, "TBC-TEST-TAG", "TBC-TEST-CONTACT", r->getAnswer());
 
@@ -88,7 +82,7 @@ void mediaResponseHandler(MediaResponse * mediaResponse) {
 
         case MediaMessage::Method::RELEASE:
 
-            fprintf(stderr, "Core::mediaResponseHandler RELEASE Response\n");
+            logger->debug("Core::mediaResponseHandler RELEASE Response");
             break;
 
         case MediaMessage::Method::EVENTS:
@@ -101,11 +95,11 @@ void mediaResponseHandler(MediaResponse * mediaResponse) {
             break;
 
         case MediaMessage::Method::RECORD_START: {
-            fprintf(stderr, "Core::mediaResponseHandler RECORD_START Response - triggering test of RECORD_STOP\n");
+            logger->debug("Core::mediaResponseHandler RECORD_START Response - triggering test of RECORD_STOP");
 
             auto * response = (MediaRecordStartResponse *) mediaResponse;
 
-            fprintf(stderr, "Core: Record Start Response callbackId=%d, error=%zu, dialogueId=%d, channelId=%u, resourceId=%u, filename=%s\n",
+            logger->debug("Core: Record Start Response callbackId={}, error={}, dialogueId={}, channelId={}, resourceId={}, filename={}",
                 response->getCallbackId(),
                 response->getErrorCode(),
                 response->getDialogueId(),
@@ -121,7 +115,7 @@ void mediaResponseHandler(MediaResponse * mediaResponse) {
         break;
 
         case MediaMessage::Method::RECORD_STOP: {
-            fprintf(stderr, "Core::mediaResponseHandler RECORD_STOP Response - triggering test of RELEASE\n");
+            logger->debug("Core::mediaResponseHandler RECORD_STOP Response - triggering test of RELEASE");
 
             auto * r = (MediaRecordStopResponse *) mediaResponse;
 
@@ -133,7 +127,7 @@ void mediaResponseHandler(MediaResponse * mediaResponse) {
 
         case MediaMessage::Method::REGISTER: {
 
-            fprintf(stderr, "Core::mediaResponseHandler REGISTER Response - received\n"); // triggering test of ALLOCATE\n");
+            logger->debug("Core::mediaResponseHandler REGISTER Response - received"); // triggering test of ALLOCATE\n");
 
 
         }
@@ -144,8 +138,9 @@ void mediaResponseHandler(MediaResponse * mediaResponse) {
 }
 
 void sipEventHandler(CallEvent * callEvent) {
-    RaiiLog raiiLog = RaiiLog("Core::sipEventHandler");
-    fprintf(stderr, "SIP Event Handler triggered with %s\n", callEvent->getEventTypeName());
+    auto logger = spdlog::get("stdlogger");
+    logger->debug("SIP Event Handler triggered with {}", callEvent->getEventTypeName());
+
     switch(callEvent->getEventType()) {
 
         case CallEvent::CallEventType::NEWCALL: {
@@ -165,21 +160,21 @@ void sipEventHandler(CallEvent * callEvent) {
             //TODO pull back SDP Offer and any extra data, raw copy of extra bodies needed. (base 64 encoding ?)
 
             if (e->hasBody(SipMessageBody::BodyType::SDP)) {
-                fprintf(stderr, "SIP Event Handler Incoming call [SDP='%s']\n", e->getBody(SipMessageBody::BodyType::SDP).c_str());
+                logger->debug("SIP Event Handler Incoming call [SDP={}]\n", e->getBody(SipMessageBody::BodyType::SDP).c_str());
             } else {
-                fprintf(stderr, "SIP Event Handler Incoming call does not have any SDP\n");
+                logger->warn("SIP Event Handler Incoming call does not have any SDP");
             }
             if (e->hasBody(SipMessageBody::BodyType::XML)) {
-                fprintf(stderr, "SIP Event Handler Incoming call [XML='%s']\n", e->getBody(SipMessageBody::BodyType::XML).c_str());
+                logger->debug("SIP Event Handler Incoming call XML={}", e->getBody(SipMessageBody::BodyType::XML).c_str());
             } else {
-                fprintf(stderr, "SIP Event Handler Incoming call does not have any XML\n");
+                logger->debug("SIP Event Handler Incoming call does not have any XML");
             }
             controlInterface->PostNotification(controlStream, notification);
         }
         break;
 
         case CallEvent::CallEventType::CALLANSWERED: {
-            fprintf(stderr, "Call Answered\n");
+            logger->debug("Call Answered");
             CallAnsweredEvent * e = (CallAnsweredEvent *) callEvent;
             CallConnectedNotification notification = CallConnectedNotification(
                     e->getChannelId(),
@@ -192,7 +187,7 @@ void sipEventHandler(CallEvent * callEvent) {
         break;
 
         case CallEvent::CallEventType::CALLCLEARED: {
-            fprintf(stderr, "Call Cleared\n");
+            logger->debug("Call Cleared");
             CallClearedEvent *e = (CallClearedEvent *) callEvent;
             CallClearedNotification notification = CallClearedNotification(
                     e->getChannelId(),
@@ -209,10 +204,9 @@ void sipEventHandler(CallEvent * callEvent) {
 //        case CallEvent::CallEventType::MEDIA_OFFER:
 //            break;
         case CallEvent::CallEventType::MEDIA_STATS: {
+            logger->debug("Call Media Stats");
             CallMediaStatsEvent *e = (CallMediaStatsEvent *) callEvent;
 
-            fprintf(stderr, "Core: SipEventHandler: CallEvent::CallEventType::MEDIA_STATS: NOT HANDLED\n");
-            //TODO Add Call Stats Notification
             CallStatisticsNotification notification = CallStatisticsNotification(
                     e->getChannelId(),
                     e->getStats(),
@@ -224,7 +218,7 @@ void sipEventHandler(CallEvent * callEvent) {
         break;
 
         case CallEvent::CallEventType::MEDIA_RECORDING_STARTED: {
-            fprintf(stderr, "Call Recording Started\n");
+            logger->debug("Media Recording Started");
             CallMediaRecordingStartedEvent * e = (CallMediaRecordingStartedEvent *) callEvent;
             CallRecordingStartedNotification notification = CallRecordingStartedNotification(
                     e->getChannelId(),
@@ -235,7 +229,7 @@ void sipEventHandler(CallEvent * callEvent) {
         }
 
         case CallEvent::CallEventType::MEDIA_RECORDING_STOPPED: {
-            fprintf(stderr, "Call Recording Stopped\n");
+            logger->debug("Media Recording Stopped");
             CallMediaRecordingStoppedEvent * e = (CallMediaRecordingStoppedEvent *) callEvent;
             CallRecordingCompletedNotification notification = CallRecordingCompletedNotification(
                     e->getChannelId(),
@@ -246,26 +240,31 @@ void sipEventHandler(CallEvent * callEvent) {
         }
         break;
         case CallEvent::CallEventType::MEDIA_PLAY_STARTED:
+            logger->debug("Media Play Started");
             break;
         case CallEvent::CallEventType ::MEDIA_PLAY_STOPPED:
+            logger->debug("Media Play Stopped");
             break;
         case CallEvent::CallEventType::MEDIA_DTMF:
+            logger->debug("DTMF Event");
             break;
         case CallEvent::CallEventType::UNKNOWN:
+            logger->warn("Unknown Media Event received");
             break;
     }
 }
 
 void controlRequestHandler(Request * request, uv_stream_t * stream) {
-    auto raiiLog = RaiiLog("Core::controlRequestHandler");
+    auto logger = spdlog::get("stdlogger");
+
     //TODO remove stream from handler - need to either have single control connection, or allow broadcast to all controllers
     controlStream = stream;
 
     if (! request) {
-        fprintf(stderr, "Core::controlRequestHandler: Invalid empty request received, unable to process\n");
+        logger->warn("Core::controlRequestHandler: Invalid empty request received, unable to process");
     }
 
-    fprintf(stderr, "\nControl request Handler triggered with %s request\n", request->getMethodName());
+    logger->debug("Control request Handler triggered with {} request", request->getMethodName());
 
     switch (request->getMethod()) {
 
@@ -286,21 +285,21 @@ void controlRequestHandler(Request * request, uv_stream_t * stream) {
 
         case Request::SYSTEM_LOGINCHALLENGERESPONSE:
             //TODO Implement login challenge process
-            fprintf(stderr, "SYSTEM_LOGINCHALLENGERESPONSE ignored for now\n");
+            logger->warn( "SYSTEM_LOGINCHALLENGERESPONSE ignored for now");
             break;
 
 
         case Request::CALL_PROGRESS:
             {
                 //TODO Add handling for CALL_PROGRESS Request
-                fprintf(stderr, "CALL_PROGRESS Request ignored for now\n");
+                logger->warn("CALL_PROGRESS Request ignored for now");
             }
             break;
 
         case Request::CALL_RING:
             {
                 //TODO Add handling for CALL_RING Request
-                fprintf(stderr, "CALL_RING Request ignored for now\n");
+                logger->warn("CALL_RING Request ignored for now");
             }
             break;
 
@@ -309,7 +308,7 @@ void controlRequestHandler(Request * request, uv_stream_t * stream) {
                 CallAnswerRequest * r = (CallAnswerRequest *) request;
                 //TODO Add correct handling for CALL_ANSWER Request
 
-                fprintf(stderr, "ControlRequest::CALL_ANSWER Request, channelId=%d, r->channelId=%d\n", request->getChannelId(), r->getChannelId());
+                logger->debug("ControlRequest::CALL_ANSWER Request, channelId={}", r->getChannelId());
 
                 std::string callId = r->getCallId();
                 std::string sdpOffer = sipInterface->getMediaOffer(r->getChannelId());
@@ -321,7 +320,7 @@ void controlRequestHandler(Request * request, uv_stream_t * stream) {
         case Request::CALL_CLEAR:
             {
                 //TODO Add handling for CALL_CLEAR Request
-                fprintf(stderr, "CALL_CLEAR ignored for now\n");
+                logger->warn("CALL_CLEAR ignored for now");
             }
             break;
 
@@ -329,15 +328,15 @@ void controlRequestHandler(Request * request, uv_stream_t * stream) {
             {
                 CallRecordRequest * crr = (CallRecordRequest *) request;
 
-                fprintf(stderr, "ControlRequest::CALL_RECORD\n");
+                logger->debug("ControlRequest::CALL_RECORD");
 
                 if (crr->isStart()) {
-                    fprintf(stderr, "ControlRequest::CALL_RECORD - Start Recording\n");
+                    logger->debug("ControlRequest::CALL_RECORD - Start Recording");
                     auto r = MediaRecordStartRequest(crr->getDialogueId(), crr->getChannelId(), theresourceId, crr->getFilename().c_str());
                     mediaInterface->PostRequest(r);
 //                    sipInterface->startRecordingCall(controlRequest->getChannelId(), r->getFilename().c_str());
                 } else {
-                    fprintf(stderr, "ControlRequest::CALL_RECORD - Stop Recording\n");
+                    logger->debug("ControlRequest::CALL_RECORD - Stop Recording");
 
                     auto r = MediaRecordStopRequest(crr->getDialogueId(), crr->getChannelId(), theresourceId, 0);
                     sipInterface->stopRecordingCall(crr->getChannelId());
@@ -349,34 +348,32 @@ void controlRequestHandler(Request * request, uv_stream_t * stream) {
 
         case Request::INFO_STATUS:
             //TODO Add handling for INFO_STATUS Request
-            fprintf(stderr, "ControlInterface: work to do\n");
-            fprintf(stderr, "ControlInterface: Handling for method not implemented yet [method=%s\n", request->getMethodName());
+            logger->debug("ControlInterface: Handling for method not implemented yet [method={}", request->getMethodName());
             break;
 
         case Request::UNKNOWN:
             //TODO Implement proper logging processes
-            fprintf(stderr, "ControlInterface: Unknown request received [method=%s\n", request->getMethodName());
+            logger->warn("ControlInterface: Unknown request received, method={}", request->getMethodName());
             break;
 
     }
 }
 
 void background_process(void * data) {
-    //fprintf(stderr, "background_process Started\n");
 
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-
-    //fprintf(stderr, "background_process Stopped\n");
 }
 
 void idle_handler(uv_idle_t* handle) {
-    //fprintf(stderr, "Idle Handler event\n");
+
 }
 
 void on_timer(uv_timer_t * timer) {
+    auto logger = spdlog::get("stdlogger");
+    logger->info("Timer event");
     // hacking here, simulating incoming call (key 1) and clearing call (key 2)
 //    long key = (long)timer->data;
-//    fprintf(stderr, "on_timer id=%ld\n", key);
+//    logger->debug( "on_timer id={}", key);
 //    if (key == 1) {
 //        controlInterface->PostCallIncomingNotification(controlStream, 1, "test-call-id");
 //    } else if (key == 2) {
@@ -391,9 +388,16 @@ void on_timer_close(uv_handle_t * handle) {
 
 int main(int argc, char * argv[]) {
 
+    auto sink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
+    auto stdlogger = std::make_shared<spdlog::logger>("stdlogger", sink);
+    spdlog::register_logger(stdlogger);
+
     uv_thread_t loop_thread;
     uv_idle_t idler;
     int sipPort = SipInterface::DefaultPort;
+
+    auto logger = spdlog::get("stdlogger");
+    stdlogger->info("getlogger::helloworld");
 
     for (int arg = 1; arg < argc; ++arg) {
         std::string argValue = std::string(argv[arg]);
@@ -403,24 +407,15 @@ int main(int argc, char * argv[]) {
             }
         }
     }
-    fprintf(stderr, "Setting Local SIP Port to %d\n", sipPort);
+    stdlogger->info("Setting Local SIP Port to {}\n", sipPort);
 
+    uv_idle_init(uv_default_loop(), &idler);
+    uv_idle_start(&idler, idle_handler);
 
-//    uv_idle_init(uv_default_loop(), &idler);
-//    uv_idle_start(&idler, idle_handler);
-
-//    uv_timer_t * timerStartCall = (uv_timer_t *)malloc(sizeof(uv_timer_t));
-//    timerStartCall->data = (void *) 1;
-//    uv_timer_init(uv_default_loop(), timerStartCall);
-//    uv_timer_start(timerStartCall, &on_timer, 30000, 0);
-//
-//
-//    uv_timer_t * timerEndCall = (uv_timer_t *)malloc(sizeof(uv_timer_t));
-//    timerEndCall->data = (void *) 2;
-//    uv_timer_init(uv_default_loop(), timerEndCall);
-//    uv_timer_start(timerEndCall, &on_timer, 40000, 0);
-
-
+    uv_timer_t * timerStartCall = (uv_timer_t *)malloc(sizeof(uv_timer_t));
+    timerStartCall->data = (void *) 1;
+    uv_timer_init(uv_default_loop(), timerStartCall);
+    uv_timer_start(timerStartCall, &on_timer, 3000, 0);
 
     mediaInterface = new MediaClientInterface("localhost", 10020, mediaResponseHandler);
     mediaInterface->Start();
@@ -433,7 +428,7 @@ int main(int argc, char * argv[]) {
 
     uv_thread_create(&loop_thread, background_process, 0);
 
-    fprintf(stderr, "Started\n");
+    logger->debug("Started\n");
 
     uv_thread_join(&loop_thread);
 
@@ -443,6 +438,7 @@ int main(int argc, char * argv[]) {
 
     controlInterface->Stop();
 
-    fprintf(stderr, "Stopped\n");
+    logger->info("Stopped");
+
     return 0;
 }

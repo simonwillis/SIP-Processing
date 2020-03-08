@@ -18,7 +18,7 @@ using namespace std;
 
 
 MediaMessage::MediaMessage(std::string json) : jsonData(json) {
-    //fprintf(stderr, "MediaMessage::CTOR [json=%s]\n", json.c_str());
+    logger->debug("New Media Message[json={}]", json.c_str());
 }
 
 string MediaMessage::toJson() {
@@ -80,14 +80,15 @@ MediaMessage * MediaMessage::build_message(const char * json) {
     Json::Value data = Json::Value::nullRef;
     Json::Reader reader;
     MediaResponse * message = NULL;
+    auto logger = spdlog::get("stdlogger");
 
     bool parsed_ok = reader.parse(json, root);
     if (! parsed_ok) {
-        fprintf(stderr, "Failed to parse message into object\n");
+        logger->error("Failed to parse json message into object. {}", json);
         return message;
     }
 
-    //fprintf(stderr, "MediaMessage: building message from %s\n", json);
+    logger->debug("MediaMessage: building message from {}", json);
 
     string domain = string(root.get("domain", "UNKNOWN").asCString());
     string type = string(root.get("type", "UNKNOWN").asCString());
@@ -95,7 +96,7 @@ MediaMessage * MediaMessage::build_message(const char * json) {
     int dialogueId = root.get("dialogueId", 0).asInt();
     uint32_t callbackId = root.get("callbackId", 0).asUInt();
 
-    //fprintf(stderr, "MediaMessage: domain=%s, type=%s, method=%s, dialogueId=%d, callbackId=%u\n", domain.c_str(), type.c_str(), method.c_str(), dialogueId, callbackId);
+    logger->debug("MediaMessage: domain={}, type={}, method={}, dialogueId={}, callbackId={}", domain.c_str(), type.c_str(), method.c_str(), dialogueId, callbackId);
 
     if (root.isMember("data")) {
         data = root.get("data", Json::Value::nullRef);
@@ -121,7 +122,7 @@ MediaMessage * MediaMessage::build_message(const char * json) {
         if (method.compare("recordStart") == 0) return new MediaRecordStartResponse(data, dialogueId, callbackId, errorCode, errorMessage.c_str());
         if (method.compare("recordStop") == 0) return new MediaRecordStopResponse(data, dialogueId, callbackId, errorCode, errorMessage.c_str());
 
-        fprintf(stderr, "MediaMessage::buildMediaMessage Unable to handle request - [method=%s] [length=%ld]\n", method.c_str(), method.size());
+        logger->error("MediaMessage::buildMediaMessage Unable to handle request - [method={{}] [length={}]", method.c_str(), method.size());
 
     } else if (type.compare("request") == 0) {
 
@@ -137,13 +138,10 @@ MediaMessage * MediaMessage::build_message(const char * json) {
         if (method.compare("recordStart") == 0) return new MediaRecordStartRequest(callbackId, dialogueId, data);
         if (method.compare("recordStop") == 0) return new MediaRecordStopRequest(callbackId, dialogueId, data);
 
-        fprintf(stderr, "MediaRequest::build_request Unable to handle request - [method=%s] [length=%ld]\n", method.c_str(), method.size());
+        logger->error("MediaRequest::build_request Unable to handle request - [method={}] [length={}]", method.c_str(), method.size());
     } else {
-
-        fprintf(stderr, "MediaMessage::build_message unexpected message [Type=%s] in [JSON=%s]\n", type.c_str(), json);
+        logger->warn("MediaMessage::build_message unexpected message [Type={}] in JSON={}", type.c_str(), json);
     }
-
-
 
     return message;
 }

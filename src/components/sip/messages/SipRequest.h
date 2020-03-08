@@ -5,6 +5,8 @@
 #ifndef SIP_SIPREQUEST_H
 #define SIP_SIPREQUEST_H
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
 #include "SipMessage.h"
 
@@ -45,6 +47,7 @@ protected:
 
     std::stringstream buildStandardBaseResponse(const char * method, std::string localTag);
     std::string buildStandardFullResponse(const char * method, std::string localTag);
+    std::shared_ptr<spdlog::logger> logger;
 
 };
 

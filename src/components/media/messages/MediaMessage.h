@@ -8,6 +8,8 @@
 #include <string>
 
 #include "../../../../lib/json/json.h"
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
 class MediaMessage {
 
@@ -31,7 +33,7 @@ public:
 
     MediaMessage(int dialogueId, uint32_t callbackId)
             : dialogueId(dialogueId), callbackId(callbackId) {
-        fprintf(stderr, "MediaMessage::CTOR dialogueId=%d, callbackId=%u\n", dialogueId, callbackId);
+        logger->debug("MediaMessage::CTOR dialogueId={}, callbackId={}", dialogueId, callbackId);
     }
 
     MediaMessage(std::string json);
@@ -57,6 +59,8 @@ public:
     virtual const Type getType() = 0;
     virtual const Method getMethod() = 0;
 
+    static MediaMessage * build_message(const char * json);
+
 protected:
 
     virtual bool hasData() { return false; }
@@ -65,15 +69,12 @@ protected:
     virtual bool hasStatus() = 0;
     virtual Json::Value getStatus() = 0;
 
-public:
-
+    // block external usage on not parameterised MediaMessage
     MediaMessage() {
-        fprintf(stderr, "Using empty what should be private CTOR of MediaMessage\n");
+        logger = spdlog::get("stdlogger");
     }
 
-    static MediaMessage * build_message(const char * json);
-
-private:
+public:
     const static char * getTypeText(Type type);
     const static char * getMethodText(Method method);
 
@@ -82,6 +83,8 @@ private:
     int dialogueId;
     uint32_t callbackId;
     std::string jsonData;
+
+    std::shared_ptr<spdlog::logger> logger;
 };
 
 

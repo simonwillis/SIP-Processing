@@ -21,7 +21,6 @@ public:
 
     SdpConnectionLine(mapped_buffer_t line) {
         std::vector<mapped_buffer_t> content = buffer_split(line, ' ');
-        fprintf(stderr, "   Connection Line content size=%lu\n", content.size());
         netType = bufferToString(content[ConnectionIndexNetType]);
         addrType = SdpAddrType(content[ConnectionIndexAddressType]);
         address = bufferToString(content[ConnectionIndexAddress]);
