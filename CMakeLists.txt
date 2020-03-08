@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.2)
 
-
-
 add_compile_options(-std=c++0x)
 
 include_directories("lib/")
@@ -10,7 +8,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "lib/")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "lib/")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "~/bin/")
 
- add_library( uv SHARED STATIC IMPORTED )
+add_library( uv SHARED STATIC IMPORTED )
 
 if(APPLE)
     set_target_properties( uv PROPERTIES IMPORTED_LOCATION /usr/local/lib/libuv.dylib )
@@ -27,51 +25,10 @@ set(UTILITY_SOURCE_FILES
         src/components/utilities/base64.cpp
         src/components/utilities/util.hpp
         src/components/utilities/util.cpp
-        tools/RaiiLog.h
-        tools/RaiiLog.cpp
         src/components/utilities/MessageBuffer.cpp
         src/components/utilities/MessageBuffer.h
         src/components/utilities/XmlDocument.cpp
         src/components/utilities/XmlDocument.h
-        )
-
-set(LOGGER_SOURCE_FILES
-        lib/spdlog/async_logger.h
-        lib/spdlog/common.h
-        lib/spdlog/formatter.h
-        lib/spdlog/logger.h
-        lib/spdlog/spdlog.h
-        lib/spdlog/tweakme.h
-        lib/spdlog/details/async_log_helper.h
-        lib/spdlog/details/async_logger_impl.h
-        lib/spdlog/details/file_helper.h
-        lib/spdlog/details/log_msg.h
-        lib/spdlog/details/logger_impl.h
-        lib/spdlog/details/mpmc_bounded_q.h
-        lib/spdlog/details/null_mutex.h
-        lib/spdlog/details/os.h
-        lib/spdlog/details/pattern_formatter_impl.h
-        lib/spdlog/details/registry.h
-        lib/spdlog/details/spdlog_impl.h
-        lib/spdlog/fmt/fmt.h
-        lib/spdlog/fmt/ostr.h
-        lib/spdlog/fmt/bundled/format.cc
-        lib/spdlog/fmt/bundled/format.h
-        lib/spdlog/fmt/bundled/ostream.cc
-        lib/spdlog/fmt/bundled/ostream.h
-        lib/spdlog/fmt/bundled/printf.h
-        lib/spdlog/sinks/android_sink.h
-        lib/spdlog/sinks/ansicolor_sink.h
-        lib/spdlog/sinks/base_sink.h
-        lib/spdlog/sinks/dist_sink.h
-        lib/spdlog/sinks/file_sinks.h
-        lib/spdlog/sinks/msvc_sink.h
-        lib/spdlog/sinks/null_sink.h
-        lib/spdlog/sinks/ostream_sink.h
-        lib/spdlog/sinks/sink.h
-        lib/spdlog/sinks/stdout_sinks.h
-        lib/spdlog/sinks/syslog_sink.h
-        lib/spdlog/sinks/wincolor_sink.h
         )
 
 set(NETWORKING_SOURCE_FILES

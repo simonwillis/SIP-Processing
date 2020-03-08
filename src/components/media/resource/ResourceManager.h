@@ -2,13 +2,15 @@
 // Created by Simon Willis on 13/06/2016.
 //
 
-#ifndef TESTSESSIONMANAGER_RESOURCEMANAGER_H
-#define TESTSESSIONMANAGER_RESOURCEMANAGER_H
+#ifndef MEDIA_RESOURCEMANAGER_H
+#define MEDIA_RESOURCEMANAGER_H
 
 
 #include <list>
 #include <map>
 #include <atomic>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 #include "Device.h"
 #include "AllocatedResource.h"
 #include "../definitions.h"
@@ -41,7 +43,9 @@ private:
     std::list<Device> availableDevices;
     std::map<uint32_t, AllocatedResource> allocatedResources;
     std::atomic<uint32_t> nextResourceId;
+
+    std::shared_ptr<spdlog::logger> logger;
 };
 
 
-#endif //TESTSESSIONMANAGER_RESOURCEMANAGER_H
+#endif //MEDIA_RESOURCEMANAGER_H

@@ -2,8 +2,8 @@
 // Created by Simon Willis on 31/05/2016.
 //
 
-#ifndef TESTMAPPEDBUFFERS_SIPRESPONSE_H
-#define TESTMAPPEDBUFFERS_SIPRESPONSE_H
+#ifndef SIP_MESSAGES_SIPRESPONSE_H
+#define SIP_MESSAGES_SIPRESPONSE_H
 
 
 #include "SipMessage.h"
@@ -50,8 +50,6 @@ public:
     virtual const std::string getMessageBody() override {
         std::stringstream ss;
 
-        if (DEBUG_SIPRESPONSE) fprintf(stderr, "SipResponse::getMessageBody\n");
-
         //TODO Handle content where contentLength in Response is not 0
 
         //TODO Handle extra header properties in Reponses where required
@@ -78,8 +76,6 @@ public:
         ss << "\r\n";
         ss << "\r\n";
 
-        if (DEBUG_SIPRESPONSE) fprintf(stderr, "SipResponse::getMessageBody returning\n%s", ss.str().c_str());
-
         return ss.str();
     }
 
@@ -94,4 +90,4 @@ private:
 };
 
 
-#endif //TESTMAPPEDBUFFERS_SIPRESPONSE_H
+#endif //SIP_MESSAGES_SIPRESPONSE_H

@@ -3,12 +3,14 @@
 /// @author Simon Willis
 /// @bug
 
-#ifndef CORE_SIPEVENT_H
-#define CORE_SIPEVENT_H
+#ifndef SIP_MESSAGES_CORE_SIPEVENT_H
+#define SIP_MESSAGES_CORE_SIPEVENT_H
 
 #include <string>
 #include <list>
 #include <map>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 #include "../headers/SipHeader.h"
 #include "SipMessageBody.h"
 
@@ -211,7 +213,10 @@ private:
     char messageMemory[4096];
     size_t messageMemoryOffset = 0;
 
+protected:
+    std::shared_ptr<spdlog::logger> logger;
+
 };
 
 
-#endif //CORE_SIPEVENT_H
+#endif //SIP_MESSAGES_CORE_SIPEVENT_H

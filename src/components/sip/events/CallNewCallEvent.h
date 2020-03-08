@@ -5,6 +5,8 @@
 #ifndef TESTSIPPARSING_NEWCALLEVENT_H
 #define TESTSIPPARSING_NEWCALLEVENT_H
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
 #include "CallEvent.h"
 #include "../../media/definitions.h"
@@ -16,7 +18,8 @@ public:
 
     CallNewCallEvent(uint32_t channelId, std::string callId, std::string tag, std::string to, std::string from, sip_headers_t headers, std::map<SipMessageBody::BodyType, std::string> bodies)
             : CallEvent(channelId, callId), tag(tag), to(to), from(from), headers(headers), bodies(bodies) {
-        fprintf(stderr, "CallNewCallEvent::CTOR [channelId=%d] [callId=%s] [to=%s] [from=%s]\n", channelId, callId.c_str(), to.c_str(), from.c_str());
+
+        spdlog::get("stdlogger")->info("New Call [channelId={}] [callId={}] [to={}] [from={}]", channelId, callId, to, from);
     }
 
     virtual CallEventType getEventType() override {

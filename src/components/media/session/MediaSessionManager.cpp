@@ -13,10 +13,12 @@ std::atomic<uint32_t> MediaSessionManager::nextSessionId(1001);
 
 MediaSessionManager::MediaSessionManager() {
 
+    logger = spdlog::get("stdlogger");
+
     this->portTotalCount = (uint16_t)((CONFIG_RTP_PORT_MAX - CONFIG_RTP_PORT_MIN) >> 1);
 
     portPool = new uint16_t[this->portTotalCount];
-    fprintf(stderr, "MediaSessionManager::MediaSessionManager setting up %u ports\n", this->portTotalCount);
+    logger->info("MediaSessionManager::MediaSessionManager setting up {} ports", this->portTotalCount);
 
     int index;
     uint16_t port;
@@ -31,7 +33,7 @@ MediaSessionManager::MediaSessionManager() {
     this->portInUseCount = 0;
     this->portAvailableCount = this->portTotalCount;
 
-    fprintf(stderr, "MediaSessionManager::MediaSessionManager created %d ports, highest port number %u\n", index, port);
+    logger->info("MediaSessionManager::MediaSessionManager created {} ports, highest port number {}", index, port);
 
 }
 
@@ -43,7 +45,6 @@ void MediaSessionManager::initialise(uint16_t maxPorts) {
             continue;
         }
 
-        fprintf(stderr, "Setting up port index %u, => %u\n", i, port);
         uv_udp_init(uv_default_loop(), &portData[i].socket);
 
         portData[i].socket.data = (void *) &portData[i];
@@ -62,9 +63,9 @@ void MediaSessionManager::initialise(uint16_t maxPorts) {
 
 void MediaSessionManager::allocateUdpDataBuffer(struct uv_handle_s *handle, long unsigned int size,
                                                 struct uv_buf_t *buf) {
-    //RtpPortData *pd = (RtpPortData *)handle->data;
+    RtpPortData *pd = (RtpPortData *)handle->data;
 
-    //fprintf(stderr, "RTPALOC: port %d,  %s %d bytes\n", pd->port, pd->active ? "ACTIVE":"INACTIVE", size);
+    spdlog::get("stdlogger")->debug("RTPALOC: port {},  {} {}} bytes", pd->port, pd->active ? "ACTIVE":"INACTIVE", size);
 
     buf->base = (char *)malloc(size);
     memset(buf->base, 0, size);
@@ -79,8 +80,7 @@ void MediaSessionManager::onUdpRecv(struct uv_udp_s *handle, long int bytes_read
 
     auto me = (MediaSessionManager *) pd->me;
 
-    //fprintf(stderr, "RTPDATA: flags = 0X%X, handle flags=0X%X, type = 0x%X\n", flags, handle->flags, handle->type);
-    fprintf(stderr, "RTPDATA: port %d, %s %d bytes, flags=0x%X, handleFlags=0x%X, type=0x%X\n",
+    spdlog::get("stdlogger")->debug("RTPDATA: port {}, {} {} bytes, flags={X}, handleFlags={X}}, type={X}}\n",
             pd->port, pd->active ? "ACTIVE":"INACTIVE", bytes_read, flags, handle->flags, handle->type);
 
     if (bytes_read > 0) {
@@ -117,12 +117,12 @@ void MediaSessionManager::releasePort(uint16_t port) {
 
 MediaSession * MediaSessionManager::getSession(uint32_t sessionId) {
 
-    fprintf(stderr, "MediaSessionManager::getSession looking for sessionId %u\n", sessionId);
+    this->logger->debug("MediaSessionManager::getSession looking for sessionId {}", sessionId);
 
     auto sessionIdSearch = this->sessions.find(sessionId);
 
     if (sessionIdSearch == this->sessions.end()) {
-        fprintf(stderr, "ERROR: MediaSessionManager::getSession sessionId=%u, no session found\n", sessionId);
+        logger->warn("ERROR: MediaSessionManager::getSession sessionId {}, no session found", sessionId);
         return nullptr;
     }
 
@@ -133,10 +133,10 @@ MediaSession * MediaSessionManager::getSession(uint32_t sessionId) {
 
 MediaSession * MediaSessionManager::getSession(std::string callId) {
 
-    fprintf(stderr, "MediaSessionManager::getSession looking for callId '%s'\n", callId.c_str());
+    logger->debug("MediaSessionManager::getSession looking for callId {}", callId.c_str());
     auto callIdSearch =  this->callIdToSessionIdLookup.find(callId);
     if (callIdSearch == this->callIdToSessionIdLookup.end()) {
-        fprintf(stderr, "ERROR: MediaSessionManager::getSession callId=%s, no session found\n", callId.c_str());
+        logger->warn("ERROR: MediaSessionManager::getSession callId {}, no session found", callId.c_str());
         return nullptr;
     }
     auto sessionId = callIdSearch->second;
@@ -161,8 +161,10 @@ MediaSession MediaSessionManager::retrieveSession(uint32_t sessionId) {
 }
 
 uint32_t MediaSessionManager::allocate(std::string callId, Sdp &sdpOffer, Sdp &sdpAnswer) {
-    fprintf(stderr, "MediaSessionManager::allocateNewSession request for %u streams\n", sdpOffer.getStreamCount());
-    fprintf(stderr, "MediaSessionManager::allocateNewSession Offer Received as\n%s\n", sdpOffer.toString().c_str());
+
+    auto logger = spdlog::get("stdlogger");
+    logger->debug("MediaSessionManager::allocateNewSession request for {} streams", sdpOffer.getStreamCount());
+    logger->debug("MediaSessionManager::allocateNewSession Offer Received as {}", sdpOffer.toString().c_str());
 
     /*
      * LOCK ENTIRE PROCESS - use lock_guard for RAII simplicity
@@ -193,8 +195,7 @@ uint32_t MediaSessionManager::allocate(std::string callId, Sdp &sdpOffer, Sdp &s
     }
 
     // This is new call offer
-    fprintf(stderr, "MediaSessionManager::allocate creating new offer answer for new media resource request\n");
-
+    logger->debug("MediaSessionManager::allocate creating new offer answer for new media resource request");
 
     SdpOrigin origin = SdpOrigin("-", "mysessionId", 1000, CONFIG_LOCAL_IP_ADDRESS);
     sdpAnswer.setOrigin(origin);
@@ -207,7 +208,7 @@ uint32_t MediaSessionManager::allocate(std::string callId, Sdp &sdpOffer, Sdp &s
 
         uint16_t port = this->allocatePort();
 
-        fprintf(stderr, "MediaSessionManager::allocate Adding stream %ul with port %u to offer answer\n", i, port);
+        logger->debug("MediaSessionManager::allocate Adding stream {} with port {} to offer answer", i, port);
 
         SdpMedia m(SdpMediaType::audio, port, SdpProtocolType::rtp);
 
@@ -226,17 +227,12 @@ uint32_t MediaSessionManager::allocate(std::string callId, Sdp &sdpOffer, Sdp &s
 //        m.addAttribute(directionAttribute);
 
         sdpAnswer.addMediaStream(m);
-
-
     }
 
-
-    fprintf(stderr, "SDPANSWER\n%s", sdpAnswer.toString().c_str());
-
+    logger->debug("SDPANSWER {}", sdpAnswer.toString().c_str());
 
     //TODO Allocate resources and return the resourceId
     uint32_t sessionId = allocateSessionId();
-
 
     sdpAnswer.setSessionId(sessionId);
 
@@ -245,7 +241,8 @@ uint32_t MediaSessionManager::allocate(std::string callId, Sdp &sdpOffer, Sdp &s
 
 
 void MediaSessionManager::release(uint32_t sessionId) {
-    fprintf(stderr, "MediaSessionManager::release TBC request to release session Id %u\n", sessionId);
+
+    this->logger->debug("MediaSessionManager::release TBC request to release session Id {}", sessionId);
 
     std::lock_guard<std::mutex> guard(mutex);
 

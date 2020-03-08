@@ -36,7 +36,7 @@ int main(int argc, char * argv[]) {
     std::vector<char> sipMessageDelimiter = {'\r','\n','\r','\n'};
     size_t byteCount;
 
-    //fprintf(stderr, "UPDATE SIP PARSER CALL\n");
+    fprintf(stderr, "UPDATE SIP PARSER CALL\n");
 
     MessageBuffer messageBuffer = MessageBuffer(8192);
 
@@ -45,7 +45,6 @@ int main(int argc, char * argv[]) {
     while ((byteCount = messageBuffer.pull(sipData, sizeof(sipData), sipMessageDelimiter))) {
         sipParser.loadMessageData(sipData, byteCount);
     }
-
 
     getchar();
 

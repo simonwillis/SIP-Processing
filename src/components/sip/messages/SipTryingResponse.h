@@ -2,8 +2,8 @@
 // Created by Simon Willis on 31/05/2016.
 //
 
-#ifndef TESTMAPPEDBUFFERS_SIPTRYINGMESSAGE_H
-#define TESTMAPPEDBUFFERS_SIPTRYINGMESSAGE_H
+#ifndef SIP_MESSAGES_SIPTRYINGMESSAGE_H
+#define SIP_MESSAGES_SIPTRYINGMESSAGE_H
 
 
 #include "SipMessage.h"
@@ -15,9 +15,6 @@ public:
 
     SipTryingResponse(mapped_buffer_t propertiesLine, std::map<std::string, SipHeader *> headers)
             : SipResponse(propertiesLine, headers) {
-
-        fprintf(stderr, "SipTryingResponse CTOR");
-
     }
 
     virtual const SipMessageType getResponseType() override {
@@ -39,4 +36,4 @@ public:
 };
 
 
-#endif //TESTMAPPEDBUFFERS_SIPTRYINGMESSAGE_H
+#endif //SIP_MESSAGES_SIPTRYINGMESSAGE_H

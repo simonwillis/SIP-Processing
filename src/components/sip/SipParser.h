@@ -7,6 +7,8 @@
 
 #include <string>
 #include <map>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 #include "messages/SipMessage.h"
 
 
@@ -53,6 +55,9 @@ private:
     SipMessage * sipMessage = NULL;
     SipMessageEventHandler eventHandler;
     void * callbackData = NULL;
+
+protected:
+    std::shared_ptr<spdlog::logger> logger;
 
 
 };

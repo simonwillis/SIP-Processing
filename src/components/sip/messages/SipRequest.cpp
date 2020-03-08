@@ -34,7 +34,7 @@ SipRequest::SipRequest() {
 SipRequest::SipRequest(mapped_buffer_t propertiesLine, std::map<std::string, SipHeader *> headers, std::map<SipMessageBody::BodyType, std::string> bodies)
         : SipMessage(propertiesLine, headers, bodies) {
     // pull the basics that should be valid for all requests
-
+    logger = spdlog::get("stdlogger");
 }
 
 

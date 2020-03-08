@@ -9,20 +9,21 @@
 using namespace std;
 
 SipDialogueManager::SipDialogueManager() {
+    logger = spdlog::get("stdlogger");
     channelToDialogueMap.clear();
     callIdToDialogueMap.clear();
 }
 
 SipTransaction * SipDialogueManager::startTransaction(SipRequest * sipRequest) {
     if (! sipRequest) {
-        fprintf(stderr, "Dialogue Manager cannot start transcation with empty request\n");
+        logger->warn("Dialogue Manager cannot start transaction with empty request");
         return nullptr;
     }
     std::string callId = sipRequest->getCallId();
-    fprintf(stderr, "SipDialogueManager::startTransaction [callId=%s]\n", callId.c_str());
+    logger->debug("SipDialogueManager::startTransaction [callId={}]", callId);
 
     if (callIdToDialogueMap.find(sipRequest->getCallId()) != callIdToDialogueMap.end()) {
-        fprintf(stderr, "SipDialogueManager::startTransaction [callId=%s] already exists in map\n", callId.c_str());
+        logger->warn("SipDialogueManager::startTransaction [callId={}] already exists in map", callId.c_str());
         return 0;
     }
 
@@ -32,13 +33,13 @@ SipTransaction * SipDialogueManager::startTransaction(SipRequest * sipRequest) {
         dialogue->setCurrentTransaction(sipRequest);
     } else {
         uint32_t  channelId = getNextChannelId();
-        fprintf(stderr, "SipDialogueManager::startTransaction, creating a new Dialogue instance [channelId=%u] [callId=%s]\n", channelId, callId.c_str());
+        logger->debug("SipDialogueManager::startTransaction, creating a new Dialogue instance [channelId={}] [callId={}]", channelId, callId);
         dialogue = new SipDialogue(channelId, sipRequest);
         channelToDialogueMap.insert(std::make_pair(channelId, dialogue));
         callIdToDialogueMap.insert(std::make_pair(callId, dialogue));
     }
 
-    fprintf(stderr, "startTransaction [channelId=%u]\n", dialogue->getChannelId());
+    logger->debug("startTransaction OK on channelId={}}", dialogue->getChannelId());
 
     return dialogue->getCurrentTransaction();
 }
@@ -46,14 +47,14 @@ SipTransaction * SipDialogueManager::startTransaction(SipRequest * sipRequest) {
 SipDialogue * SipDialogueManager::retrieveDialogue(uint32_t channelId) {
     SipDialogue * session = nullptr;
 
-    fprintf(stderr, "SipDialogueManager::retrieveDialogue [channelId=%u]\n", channelId);
+    logger->debug("SipDialogueManager::retrieveDialogue [channelId={}]", channelId);
 
     std::map<uint32_t, SipDialogue *>::iterator pos = channelToDialogueMap.find(channelId);
 
     if (pos != channelToDialogueMap.end()) {
         session = (*pos).second;
     } else {
-        fprintf(stderr, "SipDialogueManager::retrieveDialogue Failed to retrieve dialogue for call [channelId=%d]\n", channelId);
+        logger->error("SipDialogueManager::retrieveDialogue Failed to retrieve dialogue for call [channelId={}]", channelId);
     }
 
     return session;
@@ -62,14 +63,14 @@ SipDialogue * SipDialogueManager::retrieveDialogue(uint32_t channelId) {
 SipDialogue * SipDialogueManager::retrieveDialogue(string callId) {
     SipDialogue * session = nullptr;
 
-    fprintf(stderr, "SipDialogueManager::retrieveDialogue [callId=%s]\n", callId.c_str());
+    logger->debug("SipDialogueManager::retrieveDialogue [callId={}]", callId);
 
     std::map<std::string, SipDialogue *>::iterator it = callIdToDialogueMap.find(callId);
 
     if (it != callIdToDialogueMap.end()) {
         session = (*it).second;
     } else {
-        fprintf(stderr, "SipDialogueManager::retrieveDialogue Failed to retrieve dialogue for call [callId=%s]\n", callId.c_str());
+        logger->warn("SipDialogueManager::retrieveDialogue Failed to retrieve dialogue for call [callId={}]", callId);
     }
 
     return session;
@@ -77,7 +78,7 @@ SipDialogue * SipDialogueManager::retrieveDialogue(string callId) {
 
 
 SipTransaction * SipDialogueManager::getTransaction(uint32_t channelId) {
-    fprintf(stderr, "SipDialogueManager::getTransaction(channelId=%u)\n", channelId);
+    logger->debug("SipDialogueManager::getTransaction channelId={}", channelId);
     SipTransaction * transaction = nullptr;
     SipDialogue * dialogue = retrieveDialogue(channelId);
     if (dialogue) {
@@ -87,7 +88,7 @@ SipTransaction * SipDialogueManager::getTransaction(uint32_t channelId) {
 }
 
 void SipDialogueManager::endTransaction(uint32_t channelId) {
-    fprintf(stderr, "SipDialogueManager::endTransaction(channelId=%u)\n", channelId);
+    logger->debug("SipDialogueManager::endTransaction channelId={}", channelId);
     SipDialogue * dialogue = retrieveDialogue(channelId);
     if (dialogue) {
         dialogue->endCurrentTransaction();
@@ -95,20 +96,19 @@ void SipDialogueManager::endTransaction(uint32_t channelId) {
 }
 
 void SipDialogueManager::releaseDialogue(uint32_t channelId) {
-    fprintf(stderr, "SipDialogueManager::releaseDialogue [channelId=%u]\n", channelId);
+    logger->warn("SipDialogueManager::releaseDialogue channelId={} - NOT IMPLEMENTED", channelId);
     //TODO Implement SipDialogueManager::releaseDialogue
-    fprintf(stderr, "SipDialogueManager::releaseDialogue [channelId=%d] Not Implemented Yet\n", channelId);
 }
 
 uint32_t SipDialogueManager::getNextChannelId() {
     //TODO Update SipDialogueManager::getNextChannelId() to use atomic variable
     uint32_t channelId = ++lastChannelId;
-    fprintf(stderr, "SipDialogueManager::getNextChannelId returning channelId %u\n", channelId);
+    logger->debug("SipDialogueManager::getNextChannelId returning channelId {}", channelId);
     return channelId;
 }
 
 SipTransaction *  SipDialogueManager::updateTransaction(SipMessage *sipMessage) {
-    fprintf(stderr, "SipDialogueManager::updateTransaction\n");
+    logger->debug("SipDialogueManager::updateTransaction");
     uint32_t channelId = 0;
     int error = 0;
     SipTransaction * transaction = nullptr;
@@ -116,15 +116,16 @@ SipTransaction *  SipDialogueManager::updateTransaction(SipMessage *sipMessage) 
     SipResponse * response = nullptr;
 
     if (sipMessage == NULL) {
-        fprintf(stderr, "SipDialogueManager::updateTransaction received an empty message\n");
+        logger->warn("SipDialogueManager::updateTransaction received an empty message");
         return transaction;
     }
 
     if (sipMessage->isRequest()) {
-        fprintf(stderr, "SipDialogueManager::updateTransaction message is a request\n");
+        logger->debug("SipDialogueManager::updateTransaction message is a request");
         request = (SipRequest *)sipMessage;
     } else {
-        fprintf(stderr, "SipDialogueManager::updateTransaction Check the code for handling of responses\n");
+        //TODO Check the code for handling of responses
+        logger->warn("SipDialogueManager::updateTransaction Check the code for handling of responses");
         response = (SipResponse *)sipMessage;
     }
 
@@ -132,44 +133,44 @@ SipTransaction *  SipDialogueManager::updateTransaction(SipMessage *sipMessage) 
         //TODO Sort out handling of transactions in dialogues
         if (request->getRequestType() == SipMessage::SipMessageType::INVITE) {
             SipInviteRequest * invite = (SipInviteRequest *)sipMessage;
-            fprintf(stderr, "SipDialogueManager::updateTransaction have an INVITE request\n");
+            logger->debug("SipDialogueManager::updateTransaction have an INVITE request");
             SipDialogue * dialogue = retrieveDialogue(sipMessage->getCallId());
             if (dialogue) {
-                fprintf(stderr, "SipDialogueManager::updateTransaction located an existing dialogue for INVITE\n");
+                logger->debug("SipDialogueManager::updateTransaction located an existing dialogue for INVITE");
                 transaction = dialogue->getCurrentTransaction();
                 if (transaction) {
-                    fprintf(stderr, "SipDialogueManager::updateTransaction have active %s request [CSeq=%s]\n", transaction->sipRequest->getTypeDescriptionString(), transaction->sipRequest->getCSequence().c_str());
+                    logger->debug("SipDialogueManager::updateTransaction have active {} request [CSeq={}]", transaction->sipRequest->getTypeDescriptionString(), transaction->sipRequest->getCSequence());
                     if (transaction->sipRequest->getRequestType() == SipMessage::SipMessageType::INVITE) {
                         if (invite->getCSequence().compare(transaction->sipRequest->getCSequence())) {
-                            fprintf(stderr, "SipDialogueManager::updateTransaction sequences don't match, setting as a ReINVITE\n");
+                            logger->debug("SipDialogueManager::updateTransaction sequences don't match, setting as a ReINVITE");
                             invite->isReinvite(true);
                         } else {
-                            fprintf(stderr, "SipDialogueManager::updateTransaction Sequence numbers match, ignoring\n");
+                            logger->debug("SipDialogueManager::updateTransaction Sequence numbers match, ignoring");
                         }
                     } else {
-                        fprintf(stderr, "SipDialogueManager::updateTransaction assuming this INVITE is a ReINVITE\n");
+                        logger->debug("SipDialogueManager::updateTransaction assuming this INVITE is a ReINVITE");
                     }
                 } else {
-                    fprintf(stderr, "SipDialogueManager::updateTransaction no active request\n");
+                    logger->warn("SipDialogueManager::updateTransaction no active request for INVITE for existing dialogue");
                 }
             } else {
-                fprintf(stderr, "SipDialogueManager::updateTransaction no existing dialogue for INVITE\n");
+                logger->warn("SipDialogueManager::updateTransaction no existing dialogue for INVITE");
                 transaction = startTransaction(request);
-                fprintf(stderr, "New transaction returned as %s\n", transaction->toString().c_str());
+                logger->debug("New transaction returned as {}", transaction->toString());
                 dialogue = retrieveDialogue(transaction->channelId);
                 //TODO Associate transaction with dialogue
                 if (!dialogue) {
-                    fprintf(stderr, "SipDialogueManager::updateTransaction Failed to allocate a valid dialogue for INVITE\n");
+                    logger->error("SipDialogueManager::updateTransaction Failed to allocate a valid dialogue for INVITE");
                 }
             }
         } else {
-            fprintf(stderr, "SipDialogueManager::updateTransaction non-INVITE message\n");
+            logger->debug("SipDialogueManager::updateTransaction non-INVITE message");
             SipDialogue * dialogue = retrieveDialogue(sipMessage->getCallId());
             if (dialogue) {
-                fprintf(stderr, "SipDialogueManager::updateTransaction located an existing dialogue\n");
+                logger->debug( "SipDialogueManager::updateTransaction located an existing dialogue, callId={}", dialogue->getCallId());
                 transaction = dialogue->getCurrentTransaction();
                 if (transaction) {
-                    fprintf(stderr, "SipDialogueManager::updateTransaction located an existing transaction\n");
+                    logger->debug("SipDialogueManager::updateTransaction located an existing transaction on dialogue, callId={} on channel {}", dialogue->getCallId(), transaction->channelId);
                 }
             }
         }
@@ -177,14 +178,14 @@ SipTransaction *  SipDialogueManager::updateTransaction(SipMessage *sipMessage) 
     } else {
         SipDialogue * dialogue = retrieveDialogue(response->getCallId());
         if (! dialogue) {
-            fprintf(stderr, "SipDialogueManager::updateTransaction Failed to retrieve dialogue for %s %s message\n",
+            logger->warn("SipDialogueManager::updateTransaction Failed to retrieve dialogue for {}, {} message",
                     (sipMessage->isRequest()
                          ? ((SipRequest *) sipMessage)->getRequestMethod()
                          : SipMessage::getTypeStr(((SipResponse *)sipMessage)->getResponseType())),
                     (sipMessage->isRequest() ? "Request":"Response"));
         } else {
             channelId = dialogue->getChannelId();
-            fprintf(stderr, "SipDialogueManager::updateTransaction Retrieved dialogue for channel %u\n", channelId);
+            logger->debug("SipDialogueManager::updateTransaction Retrieved dialogue for channel {}", channelId);
             sipMessage->setChannelId(channelId);
             if (sipMessage->isRequest()) {
                 if (((SipRequest *)sipMessage)->getRequestType() != SipMessage::SipMessageType::ACK) {
@@ -194,7 +195,7 @@ SipTransaction *  SipDialogueManager::updateTransaction(SipMessage *sipMessage) 
         }
     }
 
-    fprintf(stderr, "SipDialogueManager::updateTransaction: completing\n");
+    logger->debug("SipDialogueManager::updateTransaction: completing");
 
     return transaction;
 }

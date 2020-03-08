@@ -4,6 +4,8 @@
 
 #include "MediaServerInterface.h"
 #include <cstring> // required for memcpy with some compilers, ignore the unused notification
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
 using namespace std;
 
@@ -20,17 +22,15 @@ void MediaServerInterface::alloc_buffer(uv_handle_t * /*handle*/, size_t /*sugge
 }
 
 void MediaServerInterface::on_read_close(uv_handle_t * handle) {
-    //fprintf(stderr, "MediaServerInterface::on_read_close\n");
     uv_stream_t * stream = (uv_stream_t *) handle;
 
-    //removeStreamFromCollection(stream);
-    //fprintf(stderr, "MediaServerInterface::on_read_close - complete\n");
+    //TODO add removeStreamFromCollection(stream);
+
 }
 
 void MediaServerInterface::on_read(uv_stream_t * stream, ssize_t bytes_read, const uv_buf_t * buffer) {
-    //fprintf(stderr, "MediaServerInterface::onUdpRecv\n");
     if (bytes_read < 0) {
-        fprintf(stderr, "MediaServerInterface Stream Handler. Read error [errorCode=%ld] [errorMessage=%s]\n", bytes_read, uv_err_name(bytes_read));
+        spdlog::get("stdlogger")->error("MediaServerInterface Stream Handler. Read error [errorCode={}] [errorMessage={}]", bytes_read, uv_err_name(bytes_read));
         uv_read_stop(stream);
         uv_close((uv_handle_t *)stream, on_read_close);
         return;
@@ -40,40 +40,37 @@ void MediaServerInterface::on_read(uv_stream_t * stream, ssize_t bytes_read, con
 
     free((void *)buffer->base);
 
-    fprintf(stderr, "MDC RX <<<===\n%s\n", message.c_str());
+    spdlog::get("stdlogger")->debug("MDC RX <<<===\n{}", message);
 
     MediaMessage * msg = MediaMessage::build_message(message.c_str());
 
     if (msg) {
         if (msg->getType() == MediaMessage::Type::REQUEST) {
-            //fprintf(stderr, "MediaServerInterface::on_read calling handler\n");
             handler((MediaRequest *)msg, stream);
-            //fprintf(stderr, "MediaServerInterface::onUdpRecv called handler\n");
         } else {
-            fprintf(stderr, "MediaServerInterface::on_read received a '%s' message, expected a 'request'\n", msg->getTypeStr());
+            spdlog::get("stdlogger")->warn("MediaServerInterface::on_read received a '{}' message, expected a 'request'", msg->getTypeStr());
         }
 
     } else {
-        fprintf(stderr, "MediaServerInterface::on_read failed to build valid request [json=%s]\n", message.c_str());
+        spdlog::get("stdlogger")->warn("MediaServerInterface::on_read failed to build valid request [json={}]", message);
     }
 
 }
 
 void MediaServerInterface::on_write(uv_write_t * req, int status) {
-    //fprintf(stderr, "MediaServerInterface::on_write\n");
     uv_buf_t * uvBuf = (uv_buf_t *)req->data;
     if (status) {
-        fprintf(stderr, "Write completed with status %d\n", status);
+        spdlog::get("stdlogger")->debug("MediaServerInterface - Write completed with status {}", status);
         return;
     }
     if (req->data == NULL) {
-        fprintf(stderr, "on_write was passed empty data on, ignoring\n");
+        spdlog::get("stdlogger")->warn("on_write was passed empty data on, ignoring");
         return;
     }
 
     if (uvBuf) {
         if (uvBuf->base == NULL) {
-            fprintf(stderr, "on_write uvBuf base is null, ignoring\n");
+            spdlog::get("stdlogger")->warn("on_write uvBuf base is null, ignoring");
         } else {
             free(uvBuf->base);
             uvBuf->base = NULL;
@@ -87,13 +84,13 @@ void MediaServerInterface::on_write(uv_write_t * req, int status) {
 }
 
 void MediaServerInterface::on_connect(uv_stream_t * stream, int status) {
-    //fprintf(stderr, "MediaServerInterface::on_connect\n");
+    spdlog::get("stdlogger")->debug("MediaServerInterface::on_connect");
     uv_tcp_t * client = new uv_tcp_t;
 
     int error = uv_tcp_init(uv_default_loop(), client);
 
     if (error) {
-        fprintf(stderr, "on_controller_connect uv_tcp_init failed with error %d %s\n", error, uv_strerror(error));
+        spdlog::get("stdlogger")->error("on_controller_connect uv_tcp_init failed with error {}, {}", error, uv_strerror(error));
         delete client;
         return;
     }
@@ -101,7 +98,7 @@ void MediaServerInterface::on_connect(uv_stream_t * stream, int status) {
     error = uv_accept(stream, (uv_stream_t *) client);
 
     if (error) {
-        fprintf(stderr, "on_controller_connect uv_accept failed with error %d %s\n", error, uv_strerror(error));
+        spdlog::get("stdlogger")->error("on_controller_connect uv_accept failed with error {}.{}", error, uv_strerror(error));
         delete client;
         return;
     }
@@ -109,12 +106,11 @@ void MediaServerInterface::on_connect(uv_stream_t * stream, int status) {
     error = uv_read_start((uv_stream_t *) client, alloc_buffer, on_read);
 
     if (error) {
-        fprintf(stderr, "on_controller_connect uv_read_start failed with error %d %s\n", error, uv_strerror(error));
+        spdlog::get("stdlogger")->error("on_controller_connect uv_read_start failed with error {}, {}", error, uv_strerror(error));
         delete client;
         return;
     }
 
-    //fprintf(stderr, "MediaServerInterface::on_connect setting connectedStream value\n");
     connectedStream = stream;
 
     // connectedStreams[stream] = client;
@@ -144,12 +140,10 @@ int MediaServerInterface::Stop() {
 }
 
 int MediaServerInterface::PostResponse(uv_stream_t * stream, MediaResponse & response) {
-    //fprintf(stderr, "MediaServerInterface::PostResponse\n");
     return Send(stream, response.toJson());
 }
 
 int MediaServerInterface::Send(uv_stream_t * stream, string message) {
-    //fprintf(stderr, "MediaServerInterface::Send [stream=%s]\n", stream ? "Exists":"NULL");
 
     int error = 0;
 
@@ -158,7 +152,7 @@ int MediaServerInterface::Send(uv_stream_t * stream, string message) {
     memcpy((void *) uvBuf->base, message.c_str(), message.length());
     uvBuf->len = message.length();
 
-    fprintf(stderr, "MDC TX ===>>>\n%s\n", string(uvBuf->base, uvBuf->len).c_str());
+    spdlog::get("stdlogger")->debug("MDC TX ===>>>\n{}", string(uvBuf->base, uvBuf->len));
 
 
 
@@ -166,7 +160,7 @@ int MediaServerInterface::Send(uv_stream_t * stream, string message) {
     req->data = (void *) uvBuf;
     error = uv_write(req, stream, uvBuf, 1, on_write);
     if (error) {
-        fprintf(stderr, "MediaServerInterface::Send uv_write returned %d (%s)\n", error, uv_err_name(error));
+        spdlog::get("stdlogger")->error("MediaServerInterface::Send uv_write returned {}, {}", error, uv_err_name(error));
     }
 
     return error;

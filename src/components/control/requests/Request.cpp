@@ -12,6 +12,8 @@
 #include "CallClearRequest.h"
 
 #include <string>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
 using namespace std;
 
@@ -24,7 +26,7 @@ Request * Request::build_request(const char *json) {
 
     bool parsed_ok = reader.parse(json, root);
     if (! parsed_ok) {
-        fprintf(stderr, "Failed to parse json into object [%s]\n", json);
+        spdlog::get("stdlogger")->warn("Failed to parse json into object {}", json);
         return req;
     }
 
@@ -36,8 +38,6 @@ Request * Request::build_request(const char *json) {
         data = root.get("data", Json::Value::nullRef);
     }
 
-    fprintf(stderr, "Request: build_request: message type is %s\n", method.c_str());
-
     if (messageType.compare("request") == 0) {
         if (method.compare("callCount") == 0) return new CallCountRequest(dialogueId);
         if (method.compare("answerCall") == 0) return new CallAnswerRequest(data, dialogueId);
@@ -46,7 +46,8 @@ Request * Request::build_request(const char *json) {
         if (method.compare("login") == 0) return new LoginRequest(data, dialogueId);
         if (method.compare("sendRingback") == 0) return new CallRingRequest(data, dialogueId);
         if (method.compare("sendProgress") == 0) return new CallProgressRequest(data, dialogueId);
-        fprintf(stderr, "Request::build_request Unable to handle request - [method=%s] [length=%ld]\n", method.c_str(), method.size());
+
+        spdlog::get("stdlogger")->warn("Request::build_request Unable to handle request - method {}, length {}", method.c_str(), method.size());
     }
 
     return req;

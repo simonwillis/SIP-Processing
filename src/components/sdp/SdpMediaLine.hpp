@@ -13,6 +13,9 @@
 #include "SdpMediaType.hpp"
 #include "SdpProtocolType.hpp"
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
+
 /// @brief handles the SDP media line
 /// @details m=<media> <port> <proto> <fmt> ...
 /// @details <media> is the media type.  Currently defined media are "audio", "video", "text", "application", and "message"
@@ -38,7 +41,9 @@ public:
                 this->formats.push_back(toUnsignedShortInteger(content[i]));
             }
         } else {
-            fprintf(stderr, "SDP::Media header line invalid, expecting at least 4 items, have %lu [line=%s]\n",
+            //  get the logger here to avoid getting it every time we get a media line when logging not required
+            auto logger = spdlog::get("stdlogger");
+            logger->warn("SDP::Media header line invalid, expecting at least 4 items, have {}, line={}",
                     content.size(), bufferToString(line).c_str());
         }
     }

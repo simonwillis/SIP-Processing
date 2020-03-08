@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
 #include "../components/media/MediaServerInterface.h"
 #include "../components/media/messages/MediaRequest.h"
@@ -24,15 +25,17 @@
 #include "../components/media/session/MediaSessionManager.h"
 
 #include <uv.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
 MediaServerInterface * mediaServerInterface;
 MediaSessionManager * mediaSessionManager;
 
 
+
+
 void on_ms20_timer(uv_timer_t * timer) {
 
     long key = (long)timer->data;
-    //fprintf(stderr, "on_timer id=%ld\n", key);
 }
 
 void loop_process(void * data) {
@@ -41,28 +44,26 @@ void loop_process(void * data) {
 }
 
 void on_connect(uv_stream_t * server, int status) {
-    fprintf(stderr, "on_connect\n");
 
 }
 
 void mediaRequestHandler(MediaRequest * request, uv_stream_t * stream) {
-    fprintf(stderr, "Media request received \n");
+    auto logger = spdlog::get("stdlogger");
+    logger->debug("Media request received");
 
     if (! request) {
-        fprintf(stderr, "media::mediaRequestHandler passed a NULL request object\n");
+        logger->error("media::mediaRequestHandler passed a NULL request object");
         return;
     }
 
     if (! stream) {
-        fprintf(stderr, "media::mediaRequestHandler passed a NULL stream object\n");
+        logger->error("media::mediaRequestHandler passed a NULL stream object");
         return;
     }
 
-    fprintf(stderr, "Media request received %s:%s:%s[id=%d]\n", request->getDomainStr(), request->getMethodStr(), request->getTypeStr(), request->getDialogueId());
-
     MediaMessage::Method method = request->getMethod();
 
-    fprintf(stderr, "Media request received. Method=%u\n", method);
+    logger->info("Media request received {} {}:{}:{} [id={}]", MediaMessage::getMethodText(method), request->getDomainStr(), request->getMethodStr(), request->getTypeStr(), request->getDialogueId());
 
     switch (method) {
 
@@ -81,8 +82,6 @@ void mediaRequestHandler(MediaRequest * request, uv_stream_t * stream) {
 
             std::string callId = req->getCallId();
             std::string rawOffer = req->getOffer();
-
-            //fprintf(stderr, "Media: RequestHandler: rawOffer='%s'\n", rawOffer.c_str());
 
             const char * data = rawOffer.c_str();
             size_t dataSize = rawOffer.size();
@@ -115,8 +114,6 @@ void mediaRequestHandler(MediaRequest * request, uv_stream_t * stream) {
             auto * req = (MediaRecordStartRequest *) request;
 
             MediaSession session = mediaSessionManager->retrieveSession(req->getResourceId());
-
-
 
             //TODO validate resource, kick off recording and get status
             MediaRecordStartResponse response(
@@ -165,6 +162,12 @@ void mediaRequestHandler(MediaRequest * request, uv_stream_t * stream) {
 }
 
 int main(int argc, char * argv[]) {
+    auto sink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
+    auto stdlogger = std::make_shared<spdlog::logger>("stdlogger", sink);
+    spdlog::register_logger(stdlogger);
+
+    auto logger = spdlog::get("stdlogger");
+    logger->info("Starting Media Service");
 
     int port = 10020;
     mediaServerInterface = new MediaServerInterface(port, mediaRequestHandler);
@@ -191,14 +194,16 @@ int main(int argc, char * argv[]) {
 //    uv_tcp_bind(&mediaClient, (struct sockaddr *)&serverAddress, 0);
 //    int error = uv_listen((uv_stream_t *)&mediaClient, 10, on_connect);
 
-    fprintf(stderr, "Started\n");
+    logger->info("Media Service Started");
 
     uv_thread_join(&loop_thread);
 
-    fprintf(stderr, "Loop Thread Completed\n");
+    logger->debug("Loop Thread Completed");
 
     delete mediaSessionManager;
     delete mediaServerInterface;
+
+    logger->info("Media Service Shutdown");
 
     return 0;
 }

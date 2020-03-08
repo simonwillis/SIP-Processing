@@ -37,7 +37,6 @@ public:
     virtual const int getChannelId() { return 0; };
     virtual const std::string getCallId() { return std::string(""); }
 
-
 protected:
     Request(int dialogueId) : dialogueId(dialogueId) {};
 

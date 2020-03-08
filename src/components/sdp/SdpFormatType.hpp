@@ -45,7 +45,6 @@ public:
             case DTMF: return "DTMF";
             case CUSTOM: return "CUSTOM";
         }
-        fprintf(stderr, "SdpFormatData::toString TBC\n");
     }
 
     void setFmt(uint16_t fmtId) {

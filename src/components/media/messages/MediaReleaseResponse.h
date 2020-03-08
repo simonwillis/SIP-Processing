@@ -21,8 +21,6 @@ public:
     MediaReleaseResponse(int dialogueId, const uint32_t callbackId, uint32_t resourceId, int errorCode, const char * errorMessage)
             : MediaResponse(dialogueId, callbackId, errorCode, errorMessage), resourceId(resourceId) {
 
-        //fprintf(stderr, "MediaAllocateResponse::CTOR with properties\n");
-
     }
 
     const Method getMethod() override {

@@ -42,14 +42,8 @@ protected:
         return Json::Value::nullRef;
     }
 
-
-
-private:
-
-public:
-
     MediaRequest() {
-        fprintf(stderr, "MediaRequest empty CTOR called - should be private\n");
+        // shouldn't this be private
     }
 
 

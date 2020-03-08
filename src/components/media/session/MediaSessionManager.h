@@ -11,6 +11,9 @@
 #include "../../sdp/Sdp.h"
 #include "MediaSession.h"
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
+
 class MediaSessionManager {
 
 public:
@@ -19,7 +22,9 @@ public:
 
 public:
 
-    ~MediaSessionManager() { }
+    ~MediaSessionManager() {
+
+    }
 
 public:
 
@@ -32,6 +37,8 @@ public:
     MediaSession retrieveSession(uint32_t id);
 
 private:
+
+    std::shared_ptr<spdlog::logger> logger;
 
     struct RtpPortData {
         MediaSessionManager * me;
@@ -60,49 +67,35 @@ private:
     void showRtpHeader(void * data, long int size) {
         RtpHeader * h = (RtpHeader *) data;
 
+        std::basic_ostringstream<char> os;
+        os << "{";
+        os << " name: \"RTP Header\", ";
+        os << " version: "   << ((h->byte1 & 0b11000000) >> 6) << ", ";
+        os << " padding: \""   << ((h->byte1 & 0b00100000) ? "true":"false") << "\", ";
+        os << " extension: \"" << ((h->byte1 & 0b00010000) ? "true":"false") << "\", ";
+        os << " sourceIds: " << (h->byte1 & 0b00001111) << ", ";
+        os << " marker: \""    << ((h->type & 0x80 ) ? "true":"false") << "\", ";
+        os << " type: "      << (h->type & 0x7F) << ", ";
+        os << " sequence: "  << (h->seq[1] + (h->seq[0] << 8) ) << ", ";
+        os << " timestamp: \""  << (h->ts[3] + (h->ts[2] << 8) + (h->ts[1] << 16) + (h->ts[0] << 24) ) << "-" << h->ts[0] << "-" << h->ts[1] << "-" << h->ts[2] << "-" << h->ts[3] << "\"";
+        os << "}";
 
-        fprintf(stderr, "RTP Header (size=%u bytes) ", size);
-        fprintf(stderr, " Version: %u\n", (h->byte1 & 0b11000000) >> 6);
-        fprintf(stderr, " Padding: %s\n", (h->byte1 & 0b00100000) ? "true":"false");
-        fprintf(stderr, " Extension: %s\n", (h->byte1 & 0b00010000) ? "true":"false");
-        fprintf(stderr, " SourceIds: %u\n", (h->byte1 & 0b00001111));
-        fprintf(stderr, " Marker: %s\n", (h->type & 0x80 ) ? "true":"false");
-        fprintf(stderr, " Type: %u  [%02X]\n ", (h->type & 0x7F), h->type);
-        fprintf(stderr, " Sequence: %u  [%02X, %02x]\n", (h->seq[1] + (h->seq[0] << 8) ), h->seq[0], h->seq[1]);
-        fprintf(stderr, " Timestamp: %u  [%02X, %02X, %02X, %02X]\n", (h->ts[3] + (h->ts[2] << 8) + (h->ts[1] << 16) + (h->ts[0] << 24) ), h->ts[0], h->ts[1], h->ts[2], h->ts[3] );
-
-        long int max = size;
-        unsigned char * p = (unsigned char *)data;
-        for (auto i = 0; i < max; i++) {
-            if (i == 44) {
-                fprintf(stderr, " - ");
-            }
-            fprintf(stderr, " %02X", *(p++));
-        }
-        fprintf(stderr, "\n\n");
+        logger->debug("{}", os.str());
     }
 
     void showRtcpHeader(void * data, long int size) {
         RtpHeader * h = (RtpHeader *) data;
 
+        std::basic_ostringstream<char> os;
+        os << "{";
+        os << " name: \"RTCP Header\", ";
+        os << " version: "   << ((h->byte1 & 0b11000000) >> 6) << ", ";
+        os << " padding: \""   << ((h->byte1 & 0b00100000) ? "true":"false") << "\", ";
+        os << " extension: \"" << ((h->byte1 & 0b00010000) ? "true":"false") << "\", ";
+        os << " sourceIds: " << (h->byte1 & 0b00001111) << ", ";
+        os << " type: "      << (h->type & 0x7F) << ", ";
 
-        fprintf(stderr, "RTP Header (size=%u bytes) ", size);
-        fprintf(stderr, " Version: %u\n", (h->byte1 & 0b11000000) >> 6);
-        fprintf(stderr, " Padding: %s\n", (h->byte1 & 0b00100000) ? "true":"false");
-        fprintf(stderr, " Extension: %s\n", (h->byte1 & 0b00010000) ? "true":"false");
-        fprintf(stderr, " SourceIds: %u\n", (h->byte1 & 0b00001111));
-        fprintf(stderr, " Type: %u  [%02X]\n ", h->type, h->type);
-
-        long int max = size;
-        unsigned char * p = (unsigned char *)data;
-        for (auto i = 0; i < max; i++) {
-            if (i == 44) {
-                fprintf(stderr, " - ");
-            }
-            fprintf(stderr, " %02X", *(p++));
-        }
-        fprintf(stderr, "\n\n");
-
+        logger->debug("{}", (os.str()));
     }
 
 

@@ -23,6 +23,9 @@
 #include "SipConnection.hpp"
 #include "messages/SipSubscribeRequest.h"
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
+
 
 typedef void (* CallEventHandler)(CallEvent * callEvent);
 
@@ -112,6 +115,8 @@ private:
 
     std::deque<int> availableChannelIds;
 
+private:
+    std::shared_ptr<spdlog::logger> logger;
 
 };
 

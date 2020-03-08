@@ -13,7 +13,9 @@ class SdpMedia {
 
 public:
 
-    SdpMedia() {}
+    SdpMedia() {
+        logger = spdlog::get("stdlogger");
+    }
 
     SdpMedia(SdpMediaLine &line)
             : type(line.type), port(line.port), protocol(line.protocol) { }
@@ -43,7 +45,7 @@ public:
 
     void addFormat(SdpFormat format) {
         if (hasFormat(format.getFmt())) {
-            fprintf(stderr, "SdpMedia::addFormat Format %u already exists in media\n", format.getFmt());
+            logger->warn("SdpMedia::addFormat Format {} already exists in media", format.getFmt());
         }
         formats.push_back(format);
     }
@@ -59,13 +61,12 @@ public:
     }
 
     void addAttribute(SdpAttribute attribute) {
-        fprintf(stderr, "SdpMedia::addAttribute TCB\n");
         attributes.push_back(attribute);
     }
 
     void addAttribute(const char * key, const char * value, const char * parameters = nullptr) {
 
-        fprintf(stderr, "SdpMedia::addAttribute [key=%s] [value=%s] [parameters=%s]\n", key ? key:"undefined", value ? value:"undefined", parameters ? parameters:"undefined");
+        logger->debug("SdpMedia::addAttribute [key={}] [value={}] [parameters={}]", key ? key:"undefined", value ? value:"undefined", parameters ? parameters:"undefined");
 
         SdpAttribute attribute(key, value, parameters);
         attributes.push_back(attribute);
@@ -84,7 +85,6 @@ public:
             ss << ' ' << formats[i].getFmt();
         }
         if (attributes.size()) {
-
             for (std::vector<SdpAttribute>::iterator it = attributes.begin(); it != attributes.end(); ++it) {
                 ss << "\r\n" << (*it).toString();
             }
@@ -121,6 +121,9 @@ public:
     SdpProtocolType protocol = SdpProtocolType::rtp;
     std::vector<SdpFormat> formats = std::vector<SdpFormat>();
     std::vector<SdpAttribute> attributes = std::vector<SdpAttribute>();
+
+private:
+    std::shared_ptr<spdlog::logger> logger;
 
 };
 

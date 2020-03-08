@@ -8,6 +8,9 @@
 #include <string>
 
 #include <uv.h>
+#include <memory>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
 #include "requests/Request.h"
 #include "notifications/Notification.hpp"
@@ -59,6 +62,8 @@ private:
     static uv_tcp_t server;
     static struct sockaddr_in serverAddress;
     static uv_stream_t * connectedStream;
+
+    std::shared_ptr<spdlog::logger> logger;
 
 };
 

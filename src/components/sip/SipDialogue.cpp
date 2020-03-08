@@ -9,7 +9,9 @@ using namespace std;
 SipDialogue::SipDialogue(uint32_t channelId, SipRequest * sipRequest) :
         callId(sipRequest->getCallId()), channelId(channelId) {
 
-    fprintf(stderr, "Created new dialogue with channelId=%u\n", channelId);
+    logger = spdlog::get("stdlogger");
+
+    logger->info("Created new dialogue for channelId {}\n", channelId);
 
     responseTag = string("temporary-response-tag");
 
@@ -20,8 +22,7 @@ SipDialogue::SipDialogue(uint32_t channelId, SipRequest * sipRequest) :
 void SipDialogue::setCurrentTransaction(SipRequest *request) {
 
     if (currentTransaction != nullptr) {
-        fprintf(stderr, "Cannot set transaction on dialgue when already have a transaction\n");
-        fprintf(stderr, "%s\n", currentTransaction->toString().c_str());
+        logger->warn("Cannot set transaction on dialgue when already have a transaction as {}", currentTransaction->toString());
         return;
     }
     std::string sdpOffer = std::string();
@@ -61,7 +62,7 @@ void SipDialogue::setCurrentTransaction(SipRequest *request) {
         case SipMessage::SipMessageType::OK:
         case SipMessage::SipMessageType::PROGRESS:
         case SipMessage::SipMessageType::SERVICE_UNAVAILABLE:
-            fprintf(stderr, "Dialogue::setCurrentTransaction cannot handle transaction with %s\n",
+            logger->warn( "Dialogue::setCurrentTransaction cannot handle transaction with message type {}\n",
                     request->getTypeDescriptionString());
             break;
 
